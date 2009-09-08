@@ -1,0 +1,58 @@
+dnl
+dnl This file is part of Sylverant PSO Server.
+dnl
+dnl Copyright (C) 2009 Lawrence Sebald
+dnl
+dnl This program is free software: you can redistribute it and/or modify
+dnl it under the terms of the GNU General Public License version 3 as
+dnl published by the Free Software Foundation.
+dnl
+dnl This program is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl GNU General Public License for more details.
+dnl
+dnl You should have received a copy of the GNU General Public License
+dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+AC_INIT(libsylverant, 1.0.0)
+AC_CONFIG_MACRO_DIR([m4])
+
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+AM_INIT_AUTOMAKE(libsylverant, 1.0.0)
+
+AC_DISABLE_SHARED
+AC_PROG_INSTALL
+AC_PROG_LIBTOOL
+
+AC_LANG(C)
+
+AC_C_BIGENDIAN
+AC_C_CONST
+
+AC_TYPE_INT8_T
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+
+AC_TYPE_UINT8_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+
+AC_CHECK_LIB(expat, XML_ParserCreate, , AC_MSG_ERROR([libexpat is required!]))
+MYSQL_CLIENT()
+
+AC_CONFIG_FILES([Makefile
+                 include/Makefile
+                 include/sylverant/Makefile
+                 src/Makefile
+                 src/accounts/Makefile
+                 src/database/Makefile
+                 src/utils/Makefile
+                 src/encryption/Makefile
+                 src/characters/Makefile
+                 src/polarssl/Makefile])
+AC_OUTPUT
