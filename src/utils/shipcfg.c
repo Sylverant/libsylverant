@@ -71,6 +71,11 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
                             attrs[i + 1], 255);
                     cfg->ships[cfg->ship_count - 1].key_file[255] = '\0';
                 }
+                else if(!strcmp(attrs[i], "gms")) {
+                    strncpy(cfg->ships[cfg->ship_count - 1].gm_file,
+                            attrs[i + 1], 255);
+                    cfg->ships[cfg->ship_count - 1].gm_file[255] = '\0';
+                }
             }
         }
     }
