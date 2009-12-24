@@ -26,6 +26,10 @@
 #define SYLVERANT_QUEST_GC  (1 << 2)
 #define SYLVERANT_QUEST_BB  (1 << 3)
 
+#define SYLVERANT_QUEST_NORMAL      (1 << 0)
+#define SYLVERANT_QUEST_BATTLE      (1 << 1)
+#define SYLVERANT_QUEST_CHALLENGE   (1 << 2)
+
 typedef struct sylverant_quest {
     char name[32];
     char desc[112];
@@ -41,6 +45,7 @@ typedef struct sylverant_qcat {
     char desc[112];
 
     int quest_count;
+    uint32_t type;
     sylverant_quest_t *quests;
 } sylverant_quest_category_t;
 

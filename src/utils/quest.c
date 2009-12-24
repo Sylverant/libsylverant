@@ -56,11 +56,23 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
 
         /* Clear the category */
         memset(cat, 0, sizeof(sylverant_quest_category_t));
+        cat->type = SYLVERANT_QUEST_NORMAL;
 
         for(i = 0; attrs[i]; i += 2) {
             if(!strcmp(attrs[i], "name")) {
                 strncpy(cat->name, attrs[i + 1], 31);
                 cat->name[31] = '\0';
+            }
+            else if(!strcmp(attrs[i], "type")) {
+                if(!strcmp(attrs[i + 1], "normal")) {
+                    cat->type = SYLVERANT_QUEST_NORMAL;
+                }
+                else if(!strcmp(attrs[i + 1], "battle")) {
+                    cat->type = SYLVERANT_QUEST_BATTLE;
+                }
+                else if(!strcmp(attrs[i + 1], "challenge")) {
+                    cat->type = SYLVERANT_QUEST_CHALLENGE;
+                }
             }
         }
     }
