@@ -12,12 +12,12 @@
 // Internal functions (don't call these) 
 unsigned long CRYPT_PC_GetNextKey(CRYPT_SETUP*);
 void CRYPT_PC_MixKeys(CRYPT_SETUP*);
-void CRYPT_PC_CreateKeys(CRYPT_SETUP*,unsigned long);
+void CRYPT_PC_CreateKeys(CRYPT_SETUP*,uint32_t);
 void CRYPT_PC_CryptData(CRYPT_SETUP*,void*,unsigned long);
 
 unsigned long CRYPT_GC_GetNextKey(CRYPT_SETUP*);
 void CRYPT_GC_MixKeys(CRYPT_SETUP*);
-void CRYPT_GC_CreateKeys(CRYPT_SETUP*,unsigned long);
+void CRYPT_GC_CreateKeys(CRYPT_SETUP*,uint32_t);
 void CRYPT_GC_CryptData(CRYPT_SETUP*,void*,unsigned long);
 
 void CRYPT_BB_Decrypt(CRYPT_SETUP*,void*,unsigned long);
@@ -31,10 +31,10 @@ int CRYPT_CreateKeys(CRYPT_SETUP* cs,void* key,unsigned char type)
     switch (cs->type)
     {
       case CRYPT_PC:
-        CRYPT_PC_CreateKeys(cs,*(unsigned long*)key);
+        CRYPT_PC_CreateKeys(cs,*(uint32_t*)key);
         break;
       case CRYPT_GAMECUBE:
-        CRYPT_GC_CreateKeys(cs,*(unsigned long*)key);
+        CRYPT_GC_CreateKeys(cs,*(uint32_t*)key);
         break;
       case CRYPT_BLUEBURST:
         CRYPT_BB_CreateKeys(cs,key);
