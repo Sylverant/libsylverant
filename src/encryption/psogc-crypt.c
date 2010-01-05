@@ -47,7 +47,7 @@ unsigned long CRYPT_GC_GetNextKey(CRYPT_SETUP* cs)
 
 void CRYPT_GC_CreateKeys(CRYPT_SETUP* cs,uint32_t seed)
 {
-    uint32_t x,y,basekey,*source1,*source2,*source3,temp;
+    uint32_t x,y,basekey,*source1,*source2,*source3;
     basekey = 0;
 
     cs->gc_seed = seed;

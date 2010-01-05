@@ -38,6 +38,7 @@ typedef struct sylverant_quest {
     char *prefix;
 
     uint32_t versions;
+    int episode;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

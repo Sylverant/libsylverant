@@ -108,6 +108,9 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
         /* Clear the category */
         memset(quest, 0, sizeof(sylverant_quest_t));
 
+        /* Default to episode 1. */
+        quest->episode = 1;
+
         for(i = 0; attrs[i]; i += 2) {
             if(!strcmp(attrs[i], "name")) {
                 strncpy(quest->name, attrs[i + 1], 31);
@@ -144,6 +147,9 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
 
                     strcpy(quest->prefix, attrs[i + 1]);
                 }
+            }
+            else if(!strcmp(attrs[i], "episode")) {
+                quest->episode = atoi(attrs[i + 1]);
             }
         }
     }
@@ -279,6 +285,9 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
         buf = XML_GetBuffer(p, BUF_SIZE);
 
         if(!buf)    {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", XML_GetCurrentLineNumber(p),
+                   XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             return -2;
         }
@@ -293,6 +302,9 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", XML_GetCurrentLineNumber(p),
+                   XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             return -3;
         }

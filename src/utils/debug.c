@@ -45,4 +45,6 @@ void debug(int level, const char *fmt, ...) {
     va_start(args, fmt);
     vfprintf(fp, fmt, args);
     va_end(args);
+
+    fflush(fp);
 }
