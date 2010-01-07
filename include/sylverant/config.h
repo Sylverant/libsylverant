@@ -45,6 +45,7 @@ typedef struct sylverant_config {
     int override_on;
     uint16_t server_port;
     char *welcome_message;
+    char quests_file[256];
 
     struct {
         int maxconn;

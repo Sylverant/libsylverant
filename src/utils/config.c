@@ -141,6 +141,14 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
             }
         }
     }
+    else if(!strcmp(name, "quests")) {
+        for(i = 0; attrs[i]; i += 2) {
+            if(!strcmp(attrs[i], "file")) {
+                strncpy(cfg->quests_file, attrs[i + 1], 255);
+                cfg->quests_file[255] = '\0';
+            }
+        }
+    }
 }
 
 static void cfg_end_hnd(void *d, const XML_Char *name) {
