@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "sylverant/debug.h"
 
@@ -31,6 +33,8 @@ void debug_set_threshold(int level) {
 void debug(int level, const char *fmt, ...) {
     va_list args;
     FILE *fp = stdout;
+    struct timeval rawtime;
+    struct tm cooked;
 
     /* Make sure we want to receive messages at this level. */
     if(level < min_level) {
@@ -41,6 +45,17 @@ void debug(int level, const char *fmt, ...) {
     if(level >= DBG_STDERR_THRESHOLD) {
         fp = stderr;
     }
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Print the timestamp */
+    fprintf(fp, "[%u:%02u:%02u: %02u:%02u:%02u.%03u]: ", cooked.tm_year + 1900,
+            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
+            cooked.tm_sec, (unsigned int)(rawtime.tv_usec / 1000));
 
     va_start(args, fmt);
     vfprintf(fp, fmt, args);
