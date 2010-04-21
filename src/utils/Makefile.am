@@ -1,7 +1,7 @@
 #  
 #   This file is part of Sylverant PSO Server.
 #  
-#   Copyright (C) 2009 Lawrence Sebald
+#   Copyright (C) 2009, 2010 Lawrence Sebald
 #  
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License version 3 as
@@ -19,6 +19,6 @@ noinst_LTLIBRARIES = libutils.la
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 libutils_la_SOURCES = config.c debug.c prs.c mt19937ar.c checksum.c shipcfg.c \
-                      quest.c
+                      quest.c proxycfg.c
 
 datarootdir = @datarootdir@
