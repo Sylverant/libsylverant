@@ -195,7 +195,7 @@ static void cfg_end_hnd(void *d, const XML_Char *name) {
     }
 }
 
-int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
+int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
     FILE *fp;
     XML_Parser p;
     int bytes;
@@ -206,6 +206,7 @@ int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
     rv = (sylverant_shipcfg_t *)malloc(sizeof(sylverant_shipcfg_t));
 
     if(!rv) {
+        *cfg = NULL;
         return -4;
     }
 
@@ -213,9 +214,16 @@ int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
     memset(rv, 0, sizeof(sylverant_shipcfg_t));
 
     /* Open the configuration file for reading. */
-    fp = fopen(SYLVERANT_SHIP_CFG, "r");
+    if(!f) {
+        fp = fopen(SYLVERANT_SHIP_CFG, "r");
+    }
+    else {
+        fp = fopen(f, "r");
+    }
 
     if(!fp) {
+        free(rv);
+        *cfg = NULL;
         return -1;
     }
 
@@ -224,6 +232,8 @@ int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
 
     if(!p)  {
         fclose(fp);
+        free(rv);
+        *cfg = NULL;
         return -2;
     }
 
@@ -240,6 +250,9 @@ int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
 
         if(!buf)    {
             XML_ParserFree(p);
+            free(rv);
+            fclose(fp);
+            *cfg = NULL;
             return -2;
         }
 
@@ -248,12 +261,18 @@ int sylverant_read_ship_config(sylverant_shipcfg_t **cfg) {
 
         if(bytes < 0)   {
             XML_ParserFree(p);
+            free(rv);
+            fclose(fp);
+            *cfg = NULL;
             return -2;
         }
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
             XML_ParserFree(p);
+            free(rv);
+            fclose(fp);
+            *cfg = NULL;
             return -3;
         }
 

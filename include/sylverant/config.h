@@ -138,7 +138,7 @@ extern int sylverant_read_config(sylverant_config_t *cfg);
 
 /* Read the ship configuration data. You are responsible for calling the
    function to clean up the configuration. */
-extern int sylverant_read_ship_config(sylverant_shipcfg_t **cfg);
+extern int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg);
 
 /* Clean up a ship configuration structure. */
 extern int sylverant_free_ship_config(sylverant_shipcfg_t *cfg);
