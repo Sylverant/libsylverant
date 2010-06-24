@@ -53,6 +53,5 @@ AC_CONFIG_FILES([Makefile
                  src/database/Makefile
                  src/utils/Makefile
                  src/encryption/Makefile
-                 src/characters/Makefile
                  src/polarssl/Makefile])
 AC_OUTPUT

@@ -26,7 +26,6 @@ libsylverant_la_LIBADD = src/accounts/libaccounts.la \
                          src/database/libdatabase.la \
                          src/utils/libutils.la \
                          src/encryption/libencryption.la \
-                         src/characters/libcharacters.la \
                          src/polarssl/libpolarssl.la
 
 datarootdir = @datarootdir@ 
