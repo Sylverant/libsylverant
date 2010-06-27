@@ -126,11 +126,35 @@ typedef struct sylverant_limits {
     int default_behavior;
 } sylverant_limits_t;
 
+/* Raw inventory item data */
+typedef struct sylverant_iitem {
+    uint32_t flags[2];
+
+    union {
+        uint8_t data_b[12];
+        uint16_t data_w[6];
+        uint32_t data_l[3];
+    };
+
+    uint32_t item_id;
+
+    union {
+        uint8_t data2_b[4];
+        uint16_t data2_w[2];
+        uint32_t data2_l;
+    };
+} __attribute__((packed)) sylverant_iitem_t;
+
 /* Read the item limits data. You are responsible for calling the function to
    clean everything up when you're done. */
 extern int sylverant_read_limits(const char *f, sylverant_limits_t **l);
 
 /* Clean up the limits data. */
 extern int sylverant_free_limits(sylverant_limits_t *l);
+
+/* Find an item in the limits list, if its there, and check for legitness.
+   Returns non-zero if the item is legit. */
+extern int sylverant_limits_check_item(sylverant_limits_t *l,
+                                       sylverant_iitem_t *i);
 
 #endif /* !SYLVERANT__ITEMS_H */

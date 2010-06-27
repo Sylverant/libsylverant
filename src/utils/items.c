@@ -200,7 +200,7 @@ static void handle_unit(const XML_Char *name, const XML_Char **attrs) {
 }
 
 static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_mag_t *m = (sylverant_mag_t *)m;
+    sylverant_mag_t *m = (sylverant_mag_t *)cur_item;
 
     if(!strcmp(name, "level")) {
         m->max_level = parse_max(attrs);
@@ -272,6 +272,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
 
+            memset(w, 0, sizeof(sylverant_weapon_t));
+
             cur_item = (sylverant_item_t *)w;
             cur_hnd = &handle_weapon;
             w->base.item_code = code;
@@ -290,6 +292,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                         DIE();
                     }
 
+                    memset(f, 0, sizeof(sylverant_frame_t));
+
                     cur_item = (sylverant_item_t *)f;
                     cur_hnd = &handle_frame;
                     f->base.item_code = code;
@@ -306,6 +310,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                         DIE();
                     }
 
+                    memset(b, 0, sizeof(sylverant_barrier_t));
+
                     cur_item = (sylverant_item_t *)b;
                     cur_hnd = &handle_barrier;
                     b->base.item_code = code;
@@ -320,6 +326,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                     if(!u) {
                         DIE();
                     }
+
+                    memset(u, 0, sizeof(sylverant_unit_t));
 
                     cur_item = (sylverant_item_t *)u;
                     cur_hnd = &handle_unit;
@@ -344,6 +352,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
 
+            memset(m, 0, sizeof(sylverant_mag_t));
+
             cur_item = (sylverant_item_t *)m;
             cur_hnd = &handle_mag;
             m->base.item_code = code;
@@ -359,6 +369,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
             if(!t) {
                 DIE();
             }
+
+            memset(t, 0, sizeof(sylverant_tool_t));
 
             cur_item = (sylverant_item_t *)t;
             cur_hnd = &handle_tool;
@@ -586,5 +598,270 @@ int sylverant_clean_limits(sylverant_limits_t *l) {
     /* Now that that is done, free the limits structure too. */
     free(l);
 
+    return 0;
+}
+
+static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
+                        uint32_t ic) {
+    sylverant_item_t *j;
+    sylverant_weapon_t *w;
+
+    /* Grab the real item type, if its a v2 item */
+    if(i->data_b[5]) {
+        ic = (i->data_b[5] << 8);
+    }
+
+    /* Find the item in our list, if its there */
+    TAILQ_FOREACH(j, l->weapons, qentry) {
+        if(j->item_code == ic) {
+            w = (sylverant_weapon_t *)j;
+
+            /* Autoreject if we're supposed to */
+            if(j->auto_reject) {
+                return 0;
+            }
+
+            /* Check the grind value first */
+            if(w->max_grind && i->data_b[3] > w->max_grind) {
+                return 0;
+            }
+
+            /* Check each percent */
+            if(w->max_percents) {
+                if(i->data_b[7] > w->max_percents ||
+                   i->data_b[9] > w->max_percents ||
+                   i->data_b[11] > w->max_percents) {
+                    return 0;
+                }
+            }
+
+            /* If we haven't rejected yet, accept */
+            return 1;
+        }
+    }
+
+    /* If we don't find it, do whatever the default is */
+    return l->default_behavior;
+}
+
+static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
+                       uint32_t ic) {
+    sylverant_item_t *j;
+    sylverant_frame_t *f;
+    sylverant_barrier_t *b;
+    sylverant_unit_t *u;
+    uint16_t tmp;
+    int type = (ic >> 8) & 0x03;
+
+    /* Grab the real item type, if its a v2 item */
+    if(type != ITEM_SUBTYPE_UNIT && i->data_b[3]) {
+        ic = ic | (i->data_b[3] << 16);
+    }
+
+    /* Find the item in our list, if its there */
+    TAILQ_FOREACH(j, l->guards, qentry) {
+        if(j->item_code == ic) {
+            /* Autoreject if we're supposed to */
+            if(j->auto_reject) {
+                return 0;
+            }
+
+            /* Check type specific things */
+            switch(type) {
+                case ITEM_SUBTYPE_FRAME:
+                    f = (sylverant_frame_t *)j;
+
+                    /* Check if the frame has too many slots */
+                    if(f->max_slots && i->data_b[5] > f->max_slots) {
+                        return 0;
+                    }
+
+                    /* Check if the dfp boost is too high */
+                    tmp = i->data_b[6] | (i->data_b[7] << 8);
+                    if(f->max_dfp && tmp > f->max_dfp) {
+                        return 0;
+                    }
+
+                    /* Check if the evp boost is too high */
+                    tmp = i->data_b[9] | (i->data_b[10] << 8);
+                    if(f->max_evp && tmp > f->max_evp) {
+                        return 0;
+                    }
+
+                    break;
+
+                case ITEM_SUBTYPE_BARRIER:
+                    b = (sylverant_barrier_t *)j;
+
+                    /* Check if the dfp boost is too high */
+                    tmp = i->data_b[6] | (i->data_b[7] << 8);
+                    if(b->max_dfp && tmp > b->max_dfp) {
+                        return 0;
+                    }
+
+                    /* Check if the evp boost is too high */
+                    tmp = i->data_b[9] | (i->data_b[10] << 8);
+                    if(b->max_evp && tmp > b->max_evp) {
+                        return 0;
+                    }
+
+                    break;
+
+                case ITEM_SUBTYPE_UNIT:
+                    u = (sylverant_unit_t *)j;
+                    /* Nothing to check... */
+                    break;
+            }
+
+            /* If we haven't rejected yet, accept */
+            return 1;
+        }
+    }
+
+    /* If we don't find it, do whatever the default is */
+    return l->default_behavior;
+}
+
+static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
+                     uint32_t ic) {
+    sylverant_item_t *j;
+    sylverant_mag_t *m;
+    uint16_t tmp;
+    int level = 0;
+
+    /* Grab the real item type, if its a v2 item, otherwise chop down to only
+       16-bits */
+    if(i->data_b[1] == 0x00 && i->data_b[2] >= 0xC9) {
+        ic = 0x02 | (((i->data_b[2] - 0xC9) + 0x2C) << 8);
+    }
+    else {
+        ic = 0x02 | (i->data_b[1] << 8);
+    }
+
+    /* Find the item in our list, if its there */
+    TAILQ_FOREACH(j, l->mags, qentry) {
+        if(j->item_code == ic) {
+            m = (sylverant_mag_t *)j;
+
+            /* Autoreject if we're supposed to */
+            if(j->auto_reject) {
+                return 0;
+            }
+
+            /* Check the mag's DEF */
+            tmp = (i->data_b[4] | (i->data_b[5] << 8)) & 0x7FFE;
+            tmp /= 100;
+            level += tmp;
+
+            if(m->max_def && tmp > m->max_def) {
+                return 0;
+            }
+
+            /* Check the mag's POW */
+            tmp = (i->data_b[6] | (i->data_b[7] << 8)) & 0x7FFE;
+            tmp /= 100;
+            level += tmp;
+
+            if(m->max_pow && tmp > m->max_pow) {
+                return 0;
+            }
+
+            /* Check the mag's DEX */
+            tmp = (i->data_b[8] | (i->data_b[9] << 8)) & 0x7FFE;
+            tmp /= 100;
+            level += tmp;
+
+            if(m->max_dex && tmp > m->max_dex) {
+                return 0;
+            }
+
+            /* Check the mag's MIND */
+            tmp = (i->data_b[10] | (i->data_b[11] << 8)) & 0x7FFE;
+            tmp /= 100;
+            level += tmp;
+
+            if(m->max_mind && tmp > m->max_mind) {
+                return 0;
+            }
+
+            /* Check the level */
+            if(m->max_level && level > m->max_level) {
+                return 0;
+            }
+
+            /* Check the IQ */
+            tmp = i->data2_b[0] | (i->data2_b[1] << 8);
+            if(m->max_iq && tmp > m->max_iq) {
+                return 0;
+            }
+
+            /* Check the synchro */
+            tmp = i->data2_b[2] | (i->data2_b[3] << 8) & 0x7FFF;
+            if(m->max_synchro && tmp > m->max_synchro) {
+                return 0;
+            }
+
+            /* If we haven't rejected yet, accept */
+            return 1;
+        }
+    }
+
+    /* If we don't find it, do whatever the default is */
+    return l->default_behavior;
+}
+
+static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
+                      uint32_t ic) {
+    sylverant_item_t *j;
+    sylverant_tool_t *t;
+
+    /* Grab the real item type, if its a v2 item */
+    if(ic == 0x060D03 && i->data_b[3]) {
+        ic = 0x000E03 | ((i->data_b[3] - 1) << 16);
+    }
+
+    /* Find the item in our list, if its there */
+    TAILQ_FOREACH(j, l->tools, qentry) {
+        if(j->item_code == ic) {
+            t = (sylverant_tool_t *)j;
+
+            /* Autoreject if we're supposed to */
+            if(j->auto_reject) {
+                return 0;
+            }
+
+            /* Check if the user has too many of this tool */
+            if(t->max_stack && i->data_b[5] > t->max_stack) {
+                return 0;
+            }
+
+            /* If we haven't rejected yet, accept */
+            return 1;
+        }
+    }
+
+    /* If we don't find it, do whatever the default is */
+    return l->default_behavior;
+}
+
+int sylverant_limits_check_item(sylverant_limits_t *l, sylverant_iitem_t *i) {
+    uint32_t item_code = i->data_b[0] | (i->data_b[1] << 8) |
+        (i->data_b[2] << 16);
+
+    switch(item_code & 0xFF) {
+        case ITEM_TYPE_WEAPON:
+            return check_weapon(l, i, item_code);
+
+        case ITEM_TYPE_GUARD:
+            return check_guard(l, i, item_code);;
+
+        case ITEM_TYPE_MAG:
+            return check_mag(l, i, item_code);
+
+        case ITEM_TYPE_TOOL:
+            return check_tool(l, i, item_code);
+    }
+
+    /* Reject unknown item types... they'll probably crash people anyway. */
     return 0;
 }
