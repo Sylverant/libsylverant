@@ -19,6 +19,6 @@ noinst_LTLIBRARIES = libutils.la
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 libutils_la_SOURCES = config.c debug.c prs.c mt19937ar.c checksum.c shipcfg.c \
-                      quest.c proxycfg.c
+                      quest.c proxycfg.c items.c
 
 datarootdir = @datarootdir@
