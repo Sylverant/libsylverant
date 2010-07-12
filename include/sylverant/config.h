@@ -50,6 +50,7 @@ typedef struct sylverant_config {
     uint16_t server_port;
     char *welcome_message;
     char quests_dir[256];
+    char limits_file[256];
 
     struct {
         int maxconn;
