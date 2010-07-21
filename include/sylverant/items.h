@@ -71,7 +71,9 @@ typedef struct sylverant_weapon {
     sylverant_item_t base;
 
     int max_grind;
+    int min_grind;
     int max_percents;
+    int min_percents;
 } sylverant_weapon_t;
 
 /* Frame information structure. */
@@ -79,8 +81,11 @@ typedef struct sylverant_frame {
     sylverant_item_t base;
 
     int max_slots;
+    int min_slots;
     int max_dfp;
+    int min_dfp;
     int max_evp;
+    int min_evp;
 } sylverant_frame_t;
 
 /* Barrier information structure. */
@@ -88,7 +93,9 @@ typedef struct sylverant_barrier {
     sylverant_item_t base;
 
     int max_dfp;
+    int min_dfp;
     int max_evp;
+    int min_evp;
 } sylverant_barrier_t;
 
 /* Unit information structure. */
@@ -101,12 +108,19 @@ typedef struct sylverant_mag {
     sylverant_item_t base;
 
     int max_level;
+    int min_level;
     int max_def;
+    int min_def;
     int max_pow;
+    int min_pow;
     int max_dex;
+    int min_dex;
     int max_mind;
+    int min_mind;
     int max_synchro;
+    int min_synchro;
     int max_iq;
+    int min_iq;
 } sylverant_mag_t;
 
 /* Tool information structure. */
@@ -114,6 +128,7 @@ typedef struct sylverant_tool {
     sylverant_item_t base;
 
     int max_stack;
+    int min_stack;
 } sylverant_tool_t;
 
 /* Overall list for reading in the configuration.*/

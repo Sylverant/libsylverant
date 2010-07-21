@@ -25,7 +25,7 @@
 #include "sylverant/items.h"
 
 #define BUF_SIZE 8192
-#define DIE() XML_StopParser(parser, 0); return
+#define DIE(x) XML_StopParser(parser, 0); return x
 
 static XML_Parser parser = NULL;
 static int in_items = 0, swap_code = 0;
@@ -128,33 +128,61 @@ static int common_tag(const XML_Char *name, const XML_Char **attrs) {
     return 1;
 }
 
-static int parse_max(const XML_Char **attrs) {
-    int rv;
+static int parse_max(const XML_Char **attrs, int *max, int *min) {
+    int first = 0;
 
-    if(!attrs || !attrs[0] || !attrs[1] || strcmp(attrs[0], "max") ||
-       attrs[2]) {
-        XML_StopParser(parser, 0);
-        return -1;
+    /* Make sure the tag looks sane */
+    if(!attrs || !attrs[0] || !attrs[1] || (attrs[2] && !attrs[3])) {
+        DIE(-1);
     }
 
+    /* Grab the first of the two possible attributes */
     errno = 0;
-    rv = (int)strtol(attrs[1], NULL, 0);
-    if(errno) {
-        XML_StopParser(parser, 0);
-        return -1;
+
+    if(!strcmp(attrs[0], "max")) {
+        *max = (int)strtol(attrs[1], NULL, 0);
+    }
+    else if(!strcmp(attrs[0], "min")) {
+        *min = (int)strtol(attrs[1], NULL, 0);
+        first = 1;
+    }
+    else {
+        DIE(-1);
     }
 
-    return rv;
+    /* If we have a second attribute, grab it */
+    if(attrs[2]) {
+        if(!strcmp(attrs[2], "max") && first) {
+            *max = (int)strtol(attrs[3], NULL, 0);
+        }
+        else if(!strcmp(attrs[2], "min") && !first) {
+            *min = (int)strtol(attrs[3], NULL, 0);
+        }
+        else {
+            DIE(-1);
+        }
+    }
+
+    /* If there was an error parsing the numbers out, die */
+    if(errno) {
+        DIE(-1);
+    }
+
+    return 0;
 }
 
 static void handle_weapon(const XML_Char *name, const XML_Char **attrs) {
     sylverant_weapon_t *w = (sylverant_weapon_t *)cur_item;
 
     if(!strcmp(name, "grind")) {
-        w->max_grind = parse_max(attrs);
+        if(parse_max(attrs, &w->max_grind, &w->min_grind)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "percents")) {
-        w->max_percents = parse_max(attrs);
+        if(parse_max(attrs, &w->max_percents, &w->min_percents)) {
+            DIE();
+        }
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -165,13 +193,19 @@ static void handle_frame(const XML_Char *name, const XML_Char **attrs) {
     sylverant_frame_t *f = (sylverant_frame_t *)cur_item;
 
     if(!strcmp(name, "slots")) {
-        f->max_slots = parse_max(attrs);
+        if(parse_max(attrs, &f->max_slots, &f->min_slots)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "dfp")) {
-        f->max_dfp = parse_max(attrs);
+        if(parse_max(attrs, &f->max_dfp, &f->min_dfp)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "evp")) {
-        f->max_evp = parse_max(attrs);
+        if(parse_max(attrs, &f->max_evp, &f->min_evp)) {
+            DIE();
+        }
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -182,10 +216,14 @@ static void handle_barrier(const XML_Char *name, const XML_Char **attrs) {
     sylverant_barrier_t *b = (sylverant_barrier_t *)cur_item;
 
     if(!strcmp(name, "dfp")) {
-        b->max_dfp = parse_max(attrs);
+        if(parse_max(attrs, &b->max_dfp, &b->min_dfp)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "evp")) {
-        b->max_evp = parse_max(attrs);
+        if(parse_max(attrs, &b->max_evp, &b->min_evp)) {
+            DIE();
+        }
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -203,25 +241,39 @@ static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
     sylverant_mag_t *m = (sylverant_mag_t *)cur_item;
 
     if(!strcmp(name, "level")) {
-        m->max_level = parse_max(attrs);
+        if(parse_max(attrs, &m->max_level, &m->min_level)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "def")) {
-        m->max_def = parse_max(attrs);
+        if(parse_max(attrs, &m->max_def, &m->min_def)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "pow")) {
-        m->max_pow = parse_max(attrs);
+        if(parse_max(attrs, &m->max_pow, &m->min_pow)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "dex")) {
-        m->max_dex = parse_max(attrs);
+        if(parse_max(attrs, &m->max_dex, &m->min_dex)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "mind")) {
-        m->max_mind = parse_max(attrs);
+        if(parse_max(attrs, &m->max_mind, &m->min_mind)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "synchro")) {
-        m->max_synchro = parse_max(attrs);
+        if(parse_max(attrs, &m->max_synchro, &m->min_synchro)) {
+            DIE();
+        }
     }
     else if(!strcmp(name, "iq")) {
-        m->max_iq = parse_max(attrs);
+        if(parse_max(attrs, &m->max_iq, &m->min_iq)) {
+            DIE();
+        }
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -232,7 +284,9 @@ static void handle_tool(const XML_Char *name, const XML_Char **attrs) {
     sylverant_tool_t *t = (sylverant_tool_t *)cur_item;
 
     if(!strcmp(name, "stack")) {
-        t->max_stack = parse_max(attrs);
+        if(parse_max(attrs, &t->max_stack, &t->min_stack)) {
+            DIE();
+        }
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -622,7 +676,8 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check the grind value first */
-            if(w->max_grind && i->data_b[3] > w->max_grind) {
+            if((w->max_grind && i->data_b[3] > w->max_grind) ||
+               (w->min_grind && i->data_b[3] < w->min_grind)) {
                 return 0;
             }
 
@@ -631,6 +686,14 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
                 if(i->data_b[7] > w->max_percents ||
                    i->data_b[9] > w->max_percents ||
                    i->data_b[11] > w->max_percents) {
+                    return 0;
+                }
+            }
+
+            if(w->min_percents) {
+                if(i->data_b[7] < w->min_percents ||
+                   i->data_b[9] < w->min_percents ||
+                   i->data_b[11] < w->min_percents) {
                     return 0;
                 }
             }
@@ -672,19 +735,23 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     f = (sylverant_frame_t *)j;
 
                     /* Check if the frame has too many slots */
-                    if(f->max_slots && i->data_b[5] > f->max_slots) {
+                    if((f->max_slots && i->data_b[5] > f->max_slots) ||
+                       (f->min_slots && i->data_b[5] < f->min_slots)) {
                         return 0;
                     }
+                        
 
                     /* Check if the dfp boost is too high */
                     tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if(f->max_dfp && tmp > f->max_dfp) {
+                    if((f->max_dfp && tmp > f->max_dfp) ||
+                       (f->min_dfp && tmp < f->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
                     tmp = i->data_b[9] | (i->data_b[10] << 8);
-                    if(f->max_evp && tmp > f->max_evp) {
+                    if((f->max_evp && tmp > f->max_evp) ||
+                       (f->min_evp && tmp < f->min_evp)) {
                         return 0;
                     }
 
@@ -695,13 +762,15 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                     /* Check if the dfp boost is too high */
                     tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if(b->max_dfp && tmp > b->max_dfp) {
+                    if((b->max_dfp && tmp > b->max_dfp) ||
+                       (b->min_dfp && tmp < b->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
                     tmp = i->data_b[9] | (i->data_b[10] << 8);
-                    if(b->max_evp && tmp > b->max_evp) {
+                    if((b->max_evp && tmp > b->max_evp) ||
+                       (b->min_evp && tmp < b->min_evp)) {
                         return 0;
                     }
 
@@ -753,7 +822,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if(m->max_def && tmp > m->max_def) {
+            if((m->max_def && tmp > m->max_def) ||
+               (m->min_def && tmp < m->min_def)) {
                 return 0;
             }
 
@@ -762,7 +832,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if(m->max_pow && tmp > m->max_pow) {
+            if((m->max_pow && tmp > m->max_pow) ||
+               (m->min_pow && tmp < m->min_pow)) {
                 return 0;
             }
 
@@ -771,7 +842,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if(m->max_dex && tmp > m->max_dex) {
+            if((m->max_dex && tmp > m->max_dex) ||
+               (m->min_dex && tmp < m->min_dex)) {
                 return 0;
             }
 
@@ -780,24 +852,28 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if(m->max_mind && tmp > m->max_mind) {
+            if((m->max_mind && tmp > m->max_mind) ||
+               (m->min_mind && tmp < m->min_mind)) {
                 return 0;
             }
 
             /* Check the level */
-            if(m->max_level && level > m->max_level) {
+            if((m->max_level && level > m->max_level) ||
+               (m->min_level && level < m->min_level)) {
                 return 0;
             }
 
             /* Check the IQ */
             tmp = i->data2_b[0] | (i->data2_b[1] << 8);
-            if(m->max_iq && tmp > m->max_iq) {
+            if((m->max_iq && tmp > m->max_iq) ||
+               (m->min_iq && tmp < m->min_iq)) {
                 return 0;
             }
 
             /* Check the synchro */
             tmp = i->data2_b[2] | (i->data2_b[3] << 8) & 0x7FFF;
-            if(m->max_synchro && tmp > m->max_synchro) {
+            if((m->max_synchro && tmp > m->max_synchro) ||
+               (m->min_synchro && tmp < m->min_synchro)) {
                 return 0;
             }
 
@@ -831,7 +907,8 @@ static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check if the user has too many of this tool */
-            if(t->max_stack && i->data_b[5] > t->max_stack) {
+            if((t->max_stack && i->data_b[5] > t->max_stack) ||
+               (t->min_stack && i->data_b[5] < t->min_stack)) {
                 return 0;
             }
 

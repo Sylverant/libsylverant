@@ -18,6 +18,10 @@
 noinst_LTLIBRARIES = libdatabase.la
 AM_CPPFLAGS = -I$(top_srcdir)/include $(MYSQL_CLIENT_CFLAGS)
 
-libdatabase_la_SOURCES = dbconfig.c dbmysql.c
+libdatabase_la_SOURCES = dbconfig.c
+
+if MYSQL
+libdatabase_la_SOURCES += dbmysql.c
+endif
 
 datarootdir = @datarootdir@
