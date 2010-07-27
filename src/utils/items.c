@@ -554,6 +554,9 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         buf = XML_GetBuffer(p, BUF_SIZE);
 
         if(!buf)    {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             sylverant_clean_limits(rv);
             fclose(fp);
@@ -569,6 +572,9 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         bytes = fread(buf, 1, BUF_SIZE, fp);
 
         if(bytes < 0)   {
+            printf("Error reading file\n");
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             sylverant_clean_limits(rv);
             fclose(fp);
@@ -582,6 +588,9 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             sylverant_clean_limits(rv);
             fclose(fp);
