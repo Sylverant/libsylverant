@@ -101,6 +101,9 @@ typedef struct sylverant_barrier {
 /* Unit information structure. */
 typedef struct sylverant_unit {
     sylverant_item_t base;
+
+    int max_plus;
+    int min_plus;
 } sylverant_unit_t;
 
 /* Mag information structure. */

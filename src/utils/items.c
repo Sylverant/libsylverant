@@ -21,6 +21,7 @@
 #include <string.h>
 #include <expat.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "sylverant/items.h"
 
@@ -231,8 +232,14 @@ static void handle_barrier(const XML_Char *name, const XML_Char **attrs) {
 }
 
 static void handle_unit(const XML_Char *name, const XML_Char **attrs) {
-    /* Units only support common tags for now... */
-    if(!common_tag(name, attrs)) {
+    sylverant_unit_t *u = (sylverant_unit_t *)cur_item;
+
+    if(!strcmp(name, "plus")) {
+        if(parse_max(attrs, &u->max_plus, &u->min_plus)) {
+            DIE();
+        }
+    }
+    else if(!common_tag(name, attrs)) {
         DIE();
     }
 }
@@ -326,7 +333,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
 
-            memset(w, 0, sizeof(sylverant_weapon_t));
+            memset(w, 0xFF, sizeof(sylverant_weapon_t));
 
             cur_item = (sylverant_item_t *)w;
             cur_hnd = &handle_weapon;
@@ -346,7 +353,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                         DIE();
                     }
 
-                    memset(f, 0, sizeof(sylverant_frame_t));
+                    memset(f, 0xFF, sizeof(sylverant_frame_t));
 
                     cur_item = (sylverant_item_t *)f;
                     cur_hnd = &handle_frame;
@@ -364,7 +371,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                         DIE();
                     }
 
-                    memset(b, 0, sizeof(sylverant_barrier_t));
+                    memset(b, 0xFF, sizeof(sylverant_barrier_t));
 
                     cur_item = (sylverant_item_t *)b;
                     cur_hnd = &handle_barrier;
@@ -381,11 +388,16 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                         DIE();
                     }
 
-                    memset(u, 0, sizeof(sylverant_unit_t));
+                    memset(u, 0xFF, sizeof(sylverant_unit_t));
 
                     cur_item = (sylverant_item_t *)u;
                     cur_hnd = &handle_unit;
                     u->base.item_code = code;
+
+                    /* Since this can be -1 or -2, set it to an off-the-wall
+                       value. */
+                    u->max_plus = INT_MIN;
+                    u->min_plus = INT_MIN;
                     break;
                 }
 
@@ -406,7 +418,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
 
-            memset(m, 0, sizeof(sylverant_mag_t));
+            memset(m, 0xFF, sizeof(sylverant_mag_t));
 
             cur_item = (sylverant_item_t *)m;
             cur_hnd = &handle_mag;
@@ -424,7 +436,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
 
-            memset(t, 0, sizeof(sylverant_tool_t));
+            memset(t, 0xFF, sizeof(sylverant_tool_t));
 
             cur_item = (sylverant_item_t *)t;
             cur_hnd = &handle_tool;
@@ -438,8 +450,8 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
             DIE();
     }
 
-   /* Default to all versions OK */
-   cur_item->allowed_versions = ITEM_VERSION_ALL;
+    /* Don't auto-reject items unless we hit that tag. */
+    cur_item->auto_reject = 0;
 }
 
 static void item_start_hnd(void *d, const XML_Char *name,
@@ -668,10 +680,21 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
                         uint32_t ic) {
     sylverant_item_t *j;
     sylverant_weapon_t *w;
+    int is_srank = 0, is_named_srank = 0;
 
     /* Grab the real item type, if its a v2 item */
     if(i->data_b[5]) {
         ic = (i->data_b[5] << 8);
+    }
+
+    /* Figure out if we're looking at a S-Rank or not */
+    if(i->data_b[1] >= 0x70 && i->data_b[1] <= 0x88) {
+        is_srank = 1;
+
+        /* If we're looking at a S-Rank, figure out if it has a name */
+        if(i->data_b[6] >= 0x0C) {
+            is_named_srank = 1;
+        }
     }
 
     /* Find the item in our list, if its there */
@@ -685,25 +708,27 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check the grind value first */
-            if((w->max_grind && i->data_b[3] > w->max_grind) ||
-               (w->min_grind && i->data_b[3] < w->min_grind)) {
+            if((w->max_grind != -1 && i->data_b[3] > w->max_grind) ||
+               (w->min_grind != -1 && i->data_b[3] < w->min_grind)) {
                 return 0;
             }
 
             /* Check each percent */
-            if(w->max_percents) {
-                if(i->data_b[7] > w->max_percents ||
-                   i->data_b[9] > w->max_percents ||
-                   i->data_b[11] > w->max_percents) {
-                    return 0;
+            if(!is_named_srank) {
+                if(w->max_percents != -1) {
+                    if((i->data_b[6] && i->data_b[7] > w->max_percents) ||
+                       (i->data_b[8] && i->data_b[9] > w->max_percents) ||
+                       (i->data_b[10] && i->data_b[11] > w->max_percents)) {
+                        return 0;
+                    }
                 }
-            }
 
-            if(w->min_percents) {
-                if(i->data_b[7] < w->min_percents ||
-                   i->data_b[9] < w->min_percents ||
-                   i->data_b[11] < w->min_percents) {
-                    return 0;
+                if(w->min_percents != -1) {
+                    if((i->data_b[6] && i->data_b[7] < w->min_percents) ||
+                       (i->data_b[8] && i->data_b[9] < w->min_percents) ||
+                       (i->data_b[10] && i->data_b[11] < w->min_percents)) {
+                        return 0;
+                    }
                 }
             }
 
@@ -723,6 +748,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_barrier_t *b;
     sylverant_unit_t *u;
     uint16_t tmp;
+    int16_t tmp2;
     int type = (ic >> 8) & 0x03;
 
     /* Grab the real item type, if its a v2 item */
@@ -744,23 +770,23 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     f = (sylverant_frame_t *)j;
 
                     /* Check if the frame has too many slots */
-                    if((f->max_slots && i->data_b[5] > f->max_slots) ||
-                       (f->min_slots && i->data_b[5] < f->min_slots)) {
+                    if((f->max_slots != -1 && i->data_b[5] > f->max_slots) ||
+                       (f->min_slots != -1 && i->data_b[5] < f->min_slots)) {
                         return 0;
                     }
                         
 
                     /* Check if the dfp boost is too high */
                     tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if((f->max_dfp && tmp > f->max_dfp) ||
-                       (f->min_dfp && tmp < f->min_dfp)) {
+                    if((f->max_dfp != -1 && tmp > f->max_dfp) ||
+                       (f->min_dfp != -1 && tmp < f->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
                     tmp = i->data_b[9] | (i->data_b[10] << 8);
-                    if((f->max_evp && tmp > f->max_evp) ||
-                       (f->min_evp && tmp < f->min_evp)) {
+                    if((f->max_evp != -1 && tmp > f->max_evp) ||
+                       (f->min_evp != -1 && tmp < f->min_evp)) {
                         return 0;
                     }
 
@@ -771,15 +797,15 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                     /* Check if the dfp boost is too high */
                     tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if((b->max_dfp && tmp > b->max_dfp) ||
-                       (b->min_dfp && tmp < b->min_dfp)) {
+                    if((b->max_dfp != -1 && tmp > b->max_dfp) ||
+                       (b->min_dfp != -1 && tmp < b->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
                     tmp = i->data_b[9] | (i->data_b[10] << 8);
-                    if((b->max_evp && tmp > b->max_evp) ||
-                       (b->min_evp && tmp < b->min_evp)) {
+                    if((b->max_evp != -1 && tmp > b->max_evp) ||
+                       (b->min_evp != -1 && tmp < b->min_evp)) {
                         return 0;
                     }
 
@@ -787,7 +813,14 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                 case ITEM_SUBTYPE_UNIT:
                     u = (sylverant_unit_t *)j;
-                    /* Nothing to check... */
+
+                    /* Check the Plus/Minus number */
+                    tmp2 = i->data_b[6] | (i->data_b[7] << 8);
+                    if((u->max_plus != INT_MIN && tmp2 > u->max_plus) ||
+                       (u->min_plus != INT_MIN && tmp2 < u->min_plus)) {
+                        return 0;
+                    }
+
                     break;
             }
 
@@ -831,8 +864,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if((m->max_def && tmp > m->max_def) ||
-               (m->min_def && tmp < m->min_def)) {
+            if((m->max_def != -1 && tmp > m->max_def) ||
+               (m->min_def != -1 && tmp < m->min_def)) {
                 return 0;
             }
 
@@ -841,8 +874,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if((m->max_pow && tmp > m->max_pow) ||
-               (m->min_pow && tmp < m->min_pow)) {
+            if((m->max_pow != -1 && tmp > m->max_pow) ||
+               (m->min_pow != -1 && tmp < m->min_pow)) {
                 return 0;
             }
 
@@ -851,8 +884,8 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if((m->max_dex && tmp > m->max_dex) ||
-               (m->min_dex && tmp < m->min_dex)) {
+            if((m->max_dex != -1 && tmp > m->max_dex) ||
+               (m->min_dex != -1 && tmp < m->min_dex)) {
                 return 0;
             }
 
@@ -861,28 +894,28 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp /= 100;
             level += tmp;
 
-            if((m->max_mind && tmp > m->max_mind) ||
-               (m->min_mind && tmp < m->min_mind)) {
+            if((m->max_mind != -1 && tmp > m->max_mind) ||
+               (m->min_mind != -1 && tmp < m->min_mind)) {
                 return 0;
             }
 
             /* Check the level */
-            if((m->max_level && level > m->max_level) ||
-               (m->min_level && level < m->min_level)) {
+            if((m->max_level != -1 && level > m->max_level) ||
+               (m->min_level != -1 && level < m->min_level)) {
                 return 0;
             }
 
             /* Check the IQ */
             tmp = i->data2_b[0] | (i->data2_b[1] << 8);
-            if((m->max_iq && tmp > m->max_iq) ||
-               (m->min_iq && tmp < m->min_iq)) {
+            if((m->max_iq != -1 && tmp > m->max_iq) ||
+               (m->min_iq != -1 && tmp < m->min_iq)) {
                 return 0;
             }
 
             /* Check the synchro */
             tmp = i->data2_b[2] | (i->data2_b[3] << 8) & 0x7FFF;
-            if((m->max_synchro && tmp > m->max_synchro) ||
-               (m->min_synchro && tmp < m->min_synchro)) {
+            if((m->max_synchro != -1 && tmp > m->max_synchro) ||
+               (m->min_synchro != -1 && tmp < m->min_synchro)) {
                 return 0;
             }
 
@@ -916,8 +949,8 @@ static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check if the user has too many of this tool */
-            if((t->max_stack && i->data_b[5] > t->max_stack) ||
-               (t->min_stack && i->data_b[5] < t->min_stack)) {
+            if((t->max_stack != -1 && i->data_b[5] > t->max_stack) ||
+               (t->min_stack != -1 && i->data_b[5] < t->min_stack)) {
                 return 0;
             }
 

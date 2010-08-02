@@ -94,7 +94,7 @@ void CRYPT_PC_DEBUG_PrintKeys(CRYPT_SETUP* cs,char* title)
     printf("\n%s\n### ###+0000 ###+0001 ###+0002 ###+0003 ###+0004 ###+0005 ###+0006 ###+0007\n",title);
     for (x = 0; x < 7; x++)
     {
-        printf("%03d",x * 8);
+        printf("%03lu",x * 8);
         for (y = 0; y < 8; y++) printf(" %08X",cs->keys[(x * 8) + y]);
         printf("\n");
     }
