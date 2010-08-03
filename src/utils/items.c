@@ -784,7 +784,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     }
 
                     /* Check if the evp boost is too high */
-                    tmp = i->data_b[9] | (i->data_b[10] << 8);
+                    tmp = i->data_b[8] | (i->data_b[9] << 8);
                     if((f->max_evp != -1 && tmp > f->max_evp) ||
                        (f->min_evp != -1 && tmp < f->min_evp)) {
                         return 0;
@@ -803,7 +803,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     }
 
                     /* Check if the evp boost is too high */
-                    tmp = i->data_b[9] | (i->data_b[10] << 8);
+                    tmp = i->data_b[8] | (i->data_b[9] << 8);
                     if((b->max_evp != -1 && tmp > b->max_evp) ||
                        (b->min_evp != -1 && tmp < b->min_evp)) {
                         return 0;
