@@ -68,6 +68,18 @@ static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
                 DIE();
             }
         }
+        else if(!strcmp(attrs[i], "check_sranks")) {
+            if(!strcmp(attrs[i + 1], "true")) {
+                l->check_srank_names = 1;
+            }
+            else if(!strcmp(attrs[i + 1], "false")) {
+                l->check_srank_names = 0;
+            }
+            else {
+                /* Invalid option, bail. */
+                DIE();
+            }
+        }
         else {
             /* Unknown attribute, bail. */
             DIE();
@@ -79,12 +91,12 @@ static int common_tag(const XML_Char *name, const XML_Char **attrs) {
     int i;
 
     if(!strcmp(name, "versions")) {
-        cur_item->allowed_versions = 0;
+        cur_item->versions = 0;
 
         for(i = 0; attrs[i]; i += 2) {
             if(!strcmp(attrs[i], "v1")) {
                 if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->allowed_versions |= ITEM_VERSION_V1;
+                    cur_item->versions |= ITEM_VERSION_V1;
                 }
                 else if(strcmp(attrs[i + 1], "false")) {
                     /* If its not true, and not false, bail */
@@ -93,7 +105,7 @@ static int common_tag(const XML_Char *name, const XML_Char **attrs) {
             }
             else if(!strcmp(attrs[i], "v2")) {
                 if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->allowed_versions |= ITEM_VERSION_V2;
+                    cur_item->versions |= ITEM_VERSION_V2;
                 }
                 else if(strcmp(attrs[i + 1], "false")) {
                     /* If its not true, and not false, bail */
@@ -102,7 +114,7 @@ static int common_tag(const XML_Char *name, const XML_Char **attrs) {
             }
             else if(!strcmp(attrs[i], "gc")) {
                 if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->allowed_versions |= ITEM_VERSION_GC;
+                    cur_item->versions |= ITEM_VERSION_GC;
                 }
                 else if(strcmp(attrs[i + 1], "false")) {
                     /* If its not true, and not false, bail */
@@ -681,6 +693,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_item_t *j;
     sylverant_weapon_t *w;
     int is_srank = 0, is_named_srank = 0;
+    uint8_t tmp;
 
     /* Grab the real item type, if its a v2 item */
     if(i->data_b[5]) {
@@ -688,12 +701,66 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     }
 
     /* Figure out if we're looking at a S-Rank or not */
-    if(i->data_b[1] >= 0x70 && i->data_b[1] <= 0x88) {
+    if(ic >= 0x007000 && ic <= 0x008800) {
         is_srank = 1;
 
         /* If we're looking at a S-Rank, figure out if it has a name */
         if(i->data_b[6] >= 0x0C) {
             is_named_srank = 1;
+
+            /* Check each character of the S-Rank name for validity. */
+            /* First character */
+            tmp = ((i->data_b[6] & 0x03) << 3) | ((i->data_b[7] & 0xE0) >> 5);
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Second character */
+            tmp = i->data_b[7] & 0x1F;
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Third character */
+            tmp = ((i->data_b[8] >> 2) & 0x1F);
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Fourth character */
+            tmp = ((i->data_b[8] & 0x03) << 3) | ((i->data_b[9] & 0xE0) >> 5);
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Fifth character */
+            tmp = i->data_b[9] & 0x1F;
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Sixth character */
+            tmp = ((i->data_b[10] >> 2) & 0x1F);
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Seventh character */
+            tmp = ((i->data_b[10] & 0x03) << 3) | ((i->data_b[11] & 0xE0) >> 5);
+            if(tmp > 26) {
+                return 0;
+            }
+
+            /* Eighth character */
+            tmp = i->data_b[11] & 0x1F;
+            if(tmp > 26) {
+                return 0;
+            }
+        }
+        else if(l->check_srank_names) {
+            /* If we've set the flag to check S-Rank names, then if it doesn't
+               have a name, it isn't legit. */
+            return 0;
         }
     }
 

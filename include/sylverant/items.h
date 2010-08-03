@@ -59,7 +59,7 @@ typedef struct sylverant_item {
     TAILQ_ENTRY(sylverant_item) qentry;
 
     uint32_t item_code;
-    uint32_t allowed_versions;
+    uint32_t versions;
     int auto_reject;
 } sylverant_item_t;
 
@@ -142,6 +142,7 @@ typedef struct sylverant_limits {
     struct sylverant_item_queue *tools;
 
     int default_behavior;
+    int check_srank_names;
 } sylverant_limits_t;
 
 /* Raw inventory item data */
