@@ -48,11 +48,6 @@
 #define ITEM_VERSION_V2         0x02
 #define ITEM_VERSION_GC         0x04
 
-/* Some combinations of the above. */
-#define ITEM_VERSION_DC_ONLY    0x03
-#define ITEM_VERSION_2_AND_UP   0xFE
-#define ITEM_VERSION_ALL        0xFF
-
 /* Base item structure. This is not generally used directly, but rather as a
    piece of the overall puzzle. */
 typedef struct sylverant_item {
@@ -174,6 +169,6 @@ extern int sylverant_free_limits(sylverant_limits_t *l);
 /* Find an item in the limits list, if its there, and check for legitness.
    Returns non-zero if the item is legit. */
 extern int sylverant_limits_check_item(sylverant_limits_t *l,
-                                       sylverant_iitem_t *i);
+                                       sylverant_iitem_t *i, uint32_t version);
 
 #endif /* !SYLVERANT__ITEMS_H */

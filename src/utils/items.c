@@ -689,7 +689,7 @@ int sylverant_clean_limits(sylverant_limits_t *l) {
 }
 
 static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
-                        uint32_t ic) {
+                        uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
     sylverant_weapon_t *w;
     int is_srank = 0, is_named_srank = 0;
@@ -778,7 +778,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Find the item in our list, if its there */
     TAILQ_FOREACH(j, l->weapons, qentry) {
-        if(j->item_code == ic) {
+        if(j->item_code == ic && (j->versions & version) == version) {
             w = (sylverant_weapon_t *)j;
 
             /* Autoreject if we're supposed to */
@@ -821,7 +821,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
 }
 
 static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
-                       uint32_t ic) {
+                       uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
     sylverant_frame_t *f;
     sylverant_barrier_t *b;
@@ -837,7 +837,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Find the item in our list, if its there */
     TAILQ_FOREACH(j, l->guards, qentry) {
-        if(j->item_code == ic) {
+        if(j->item_code == ic && (j->versions & version) == version) {
             /* Autoreject if we're supposed to */
             if(j->auto_reject) {
                 return 0;
@@ -913,7 +913,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 }
 
 static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
-                     uint32_t ic) {
+                     uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
     sylverant_mag_t *m;
     uint16_t tmp;
@@ -930,7 +930,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Find the item in our list, if its there */
     TAILQ_FOREACH(j, l->mags, qentry) {
-        if(j->item_code == ic) {
+        if(j->item_code == ic && (j->versions & version) == version) {
             m = (sylverant_mag_t *)j;
 
             /* Autoreject if we're supposed to */
@@ -1008,7 +1008,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
 }
 
 static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
-                      uint32_t ic) {
+                      uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
     sylverant_tool_t *t;
 
@@ -1019,7 +1019,7 @@ static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Find the item in our list, if its there */
     TAILQ_FOREACH(j, l->tools, qentry) {
-        if(j->item_code == ic) {
+        if(j->item_code == ic && (j->versions & version) == version) {
             t = (sylverant_tool_t *)j;
 
             /* Autoreject if we're supposed to */
@@ -1042,22 +1042,23 @@ static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
     return l->default_behavior;
 }
 
-int sylverant_limits_check_item(sylverant_limits_t *l, sylverant_iitem_t *i) {
+int sylverant_limits_check_item(sylverant_limits_t *l, sylverant_iitem_t *i,
+                                uint32_t version) {
     uint32_t item_code = i->data_b[0] | (i->data_b[1] << 8) |
         (i->data_b[2] << 16);
 
     switch(item_code & 0xFF) {
         case ITEM_TYPE_WEAPON:
-            return check_weapon(l, i, item_code);
+            return check_weapon(l, i, version, item_code);
 
         case ITEM_TYPE_GUARD:
-            return check_guard(l, i, item_code);;
+            return check_guard(l, i, version, item_code);
 
         case ITEM_TYPE_MAG:
-            return check_mag(l, i, item_code);
+            return check_mag(l, i, version, item_code);
 
         case ITEM_TYPE_TOOL:
-            return check_tool(l, i, item_code);
+            return check_tool(l, i, version, item_code);
     }
 
     /* Reject unknown item types... they'll probably crash people anyway. */
