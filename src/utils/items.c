@@ -708,53 +708,65 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
         if(i->data_b[6] >= 0x0C) {
             is_named_srank = 1;
 
-            /* Check each character of the S-Rank name for validity. */
-            /* First character */
-            tmp = ((i->data_b[6] & 0x03) << 3) | ((i->data_b[7] & 0xE0) >> 5);
-            if(tmp > 26) {
-                return 0;
-            }
+            if(l->check_srank_names) {
+                /* Make sure this S-Rank doesn't have the "name-only" flag set,
+                   since that's not legitimately available in game. */
+                if((i->data_b[6] & 0x88) == 0x88) {
+                    return 0;
+                }
+                
+                /* Check each character of the S-Rank name for validity. Only
+                   A-Z are legitimately available. */
+                /* First character */
+                tmp = ((i->data_b[6] & 0x03) << 3) |
+                    ((i->data_b[7] & 0xE0) >> 5);
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Second character */
-            tmp = i->data_b[7] & 0x1F;
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Second character */
+                tmp = i->data_b[7] & 0x1F;
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Third character */
-            tmp = ((i->data_b[8] >> 2) & 0x1F);
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Third character */
+                tmp = ((i->data_b[8] >> 2) & 0x1F);
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Fourth character */
-            tmp = ((i->data_b[8] & 0x03) << 3) | ((i->data_b[9] & 0xE0) >> 5);
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Fourth character */
+                tmp = ((i->data_b[8] & 0x03) << 3) |
+                    ((i->data_b[9] & 0xE0) >> 5);
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Fifth character */
-            tmp = i->data_b[9] & 0x1F;
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Fifth character */
+                tmp = i->data_b[9] & 0x1F;
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Sixth character */
-            tmp = ((i->data_b[10] >> 2) & 0x1F);
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Sixth character */
+                tmp = ((i->data_b[10] >> 2) & 0x1F);
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Seventh character */
-            tmp = ((i->data_b[10] & 0x03) << 3) | ((i->data_b[11] & 0xE0) >> 5);
-            if(tmp > 26) {
-                return 0;
-            }
+                /* Seventh character */
+                tmp = ((i->data_b[10] & 0x03) << 3) |
+                    ((i->data_b[11] & 0xE0) >> 5);
+                if(tmp > 26) {
+                    return 0;
+                }
 
-            /* Eighth character */
-            tmp = i->data_b[11] & 0x1F;
-            if(tmp > 26) {
-                return 0;
+                /* Eighth character */
+                tmp = i->data_b[11] & 0x1F;
+                if(tmp > 26) {
+                    return 0;
+                }
             }
         }
         else if(l->check_srank_names) {
