@@ -26,12 +26,58 @@
 #include "sylverant/items.h"
 
 #define BUF_SIZE 8192
-#define DIE(x) XML_StopParser(parser, 0); return x
+#define DIE() XML_StopParser(parser, 0); return
 
 static XML_Parser parser = NULL;
 static int in_items = 0, swap_code = 0;
 static sylverant_item_t *cur_item = NULL;
 static void (*cur_hnd)(const XML_Char *name, const XML_Char **attrs);
+
+#define FULL_ATTR_VALID 0x1FFFFFFFFFFULL
+/* List of valid weapon attributes. */
+static const char *weapon_attrs[Weapon_Attr_MAX + 1] = {
+    "None",
+    "Draw",
+    "Drain",
+    "Fill",
+    "Gush",
+    "Heart",
+    "Mind",
+    "Soul",
+    "Geist",
+    "Master's",
+    "Lord's",
+    "King's",
+    "Charge",
+    "Spirit",
+    "Berserk",
+    "Ice",
+    "Frost",
+    "Freeze",
+    "Blizzard",
+    "Bind",
+    "Hold",
+    "Seize",
+    "Arrest",
+    "Heat",
+    "Fire",
+    "Flame",
+    "Burning",
+    "Shock",
+    "Thunder",
+    "Storm",
+    "Tempest",
+    "Dim",
+    "Shadow",
+    "Dark",
+    "Hell",
+    "Panic",
+    "Riot",
+    "Havoc",
+    "Chaos",
+    "Devil's",
+    "Demon's"
+};
 
 static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
     int i;
@@ -141,12 +187,12 @@ static int common_tag(const XML_Char *name, const XML_Char **attrs) {
     return 1;
 }
 
-static int parse_max(const XML_Char **attrs, int *max, int *min) {
+static void parse_max(const XML_Char **attrs, int *max, int *min) {
     int first = 0;
 
     /* Make sure the tag looks sane */
     if(!attrs || !attrs[0] || !attrs[1] || (attrs[2] && !attrs[3])) {
-        DIE(-1);
+        DIE();
     }
 
     /* Grab the first of the two possible attributes */
@@ -160,7 +206,7 @@ static int parse_max(const XML_Char **attrs, int *max, int *min) {
         first = 1;
     }
     else {
-        DIE(-1);
+        DIE();
     }
 
     /* If we have a second attribute, grab it */
@@ -172,30 +218,69 @@ static int parse_max(const XML_Char **attrs, int *max, int *min) {
             *min = (int)strtol(attrs[3], NULL, 0);
         }
         else {
-            DIE(-1);
+            DIE();
         }
     }
 
     /* If there was an error parsing the numbers out, die */
     if(errno) {
-        DIE(-1);
+        DIE();
+    }
+}
+
+static void parse_attrs(const XML_Char **attrs, uint64_t *valid) {
+    int i;
+    char *str, *lasts, *tok;
+
+    /* Make sure we have a sane set */
+    if(!attrs || !attrs[0] || !attrs[1] || attrs[2]) {
+        DIE();
     }
 
-    return 0;
+    /* The only valid attribute here is disallow */
+    if(strcmp("disallow", attrs[0])) {
+        DIE();
+    }
+
+    /* Create a temporary copy of the string for parsing */
+    str = strdup(attrs[1]);
+    tok = strtok_r(str, ", ", &lasts);
+
+    /* Go through any attributes in the disallow list */
+    while(tok) {
+        /* Look through the list of weapon attributes for what we have */
+        for(i = 0; i <= Weapon_Attr_MAX; ++i) {
+            if(!strcmp(weapon_attrs[i], tok)) {
+                *valid &= ~(1 << i);
+                break;
+            }
+        }
+
+        /* If we didn't find the attribute, die */
+        if(i > Weapon_Attr_MAX) {
+            free(str);
+            DIE();
+        }
+
+        /* Grab the next token, and check for it */
+        tok = strtok_r(NULL, ", ", &lasts);
+    }
+
+    /* Clean up the temporary string, since we're done */
+    free(str);
 }
 
 static void handle_weapon(const XML_Char *name, const XML_Char **attrs) {
     sylverant_weapon_t *w = (sylverant_weapon_t *)cur_item;
 
     if(!strcmp(name, "grind")) {
-        if(parse_max(attrs, &w->max_grind, &w->min_grind)) {
-            DIE();
-        }
+        parse_max(attrs, &w->max_grind, &w->min_grind);
     }
     else if(!strcmp(name, "percents")) {
-        if(parse_max(attrs, &w->max_percents, &w->min_percents)) {
-            DIE();
-        }
+        parse_max(attrs, &w->max_percents, &w->min_percents);
+    }
+    else if(!strcmp(name, "attributes")) {
+        parse_attrs(attrs, &w->valid_attrs);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -206,19 +291,13 @@ static void handle_frame(const XML_Char *name, const XML_Char **attrs) {
     sylverant_frame_t *f = (sylverant_frame_t *)cur_item;
 
     if(!strcmp(name, "slots")) {
-        if(parse_max(attrs, &f->max_slots, &f->min_slots)) {
-            DIE();
-        }
+        parse_max(attrs, &f->max_slots, &f->min_slots);
     }
     else if(!strcmp(name, "dfp")) {
-        if(parse_max(attrs, &f->max_dfp, &f->min_dfp)) {
-            DIE();
-        }
+        parse_max(attrs, &f->max_dfp, &f->min_dfp);
     }
     else if(!strcmp(name, "evp")) {
-        if(parse_max(attrs, &f->max_evp, &f->min_evp)) {
-            DIE();
-        }
+        parse_max(attrs, &f->max_evp, &f->min_evp);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -229,14 +308,10 @@ static void handle_barrier(const XML_Char *name, const XML_Char **attrs) {
     sylverant_barrier_t *b = (sylverant_barrier_t *)cur_item;
 
     if(!strcmp(name, "dfp")) {
-        if(parse_max(attrs, &b->max_dfp, &b->min_dfp)) {
-            DIE();
-        }
+        parse_max(attrs, &b->max_dfp, &b->min_dfp);
     }
     else if(!strcmp(name, "evp")) {
-        if(parse_max(attrs, &b->max_evp, &b->min_evp)) {
-            DIE();
-        }
+        parse_max(attrs, &b->max_evp, &b->min_evp);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -247,9 +322,7 @@ static void handle_unit(const XML_Char *name, const XML_Char **attrs) {
     sylverant_unit_t *u = (sylverant_unit_t *)cur_item;
 
     if(!strcmp(name, "plus")) {
-        if(parse_max(attrs, &u->max_plus, &u->min_plus)) {
-            DIE();
-        }
+        parse_max(attrs, &u->max_plus, &u->min_plus);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -260,39 +333,25 @@ static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
     sylverant_mag_t *m = (sylverant_mag_t *)cur_item;
 
     if(!strcmp(name, "level")) {
-        if(parse_max(attrs, &m->max_level, &m->min_level)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_level, &m->min_level);
     }
     else if(!strcmp(name, "def")) {
-        if(parse_max(attrs, &m->max_def, &m->min_def)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_def, &m->min_def);
     }
     else if(!strcmp(name, "pow")) {
-        if(parse_max(attrs, &m->max_pow, &m->min_pow)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_pow, &m->min_pow);
     }
     else if(!strcmp(name, "dex")) {
-        if(parse_max(attrs, &m->max_dex, &m->min_dex)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_dex, &m->min_dex);
     }
     else if(!strcmp(name, "mind")) {
-        if(parse_max(attrs, &m->max_mind, &m->min_mind)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_mind, &m->min_mind);
     }
     else if(!strcmp(name, "synchro")) {
-        if(parse_max(attrs, &m->max_synchro, &m->min_synchro)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_synchro, &m->min_synchro);
     }
     else if(!strcmp(name, "iq")) {
-        if(parse_max(attrs, &m->max_iq, &m->min_iq)) {
-            DIE();
-        }
+        parse_max(attrs, &m->max_iq, &m->min_iq);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -303,9 +362,7 @@ static void handle_tool(const XML_Char *name, const XML_Char **attrs) {
     sylverant_tool_t *t = (sylverant_tool_t *)cur_item;
 
     if(!strcmp(name, "stack")) {
-        if(parse_max(attrs, &t->max_stack, &t->min_stack)) {
-            DIE();
-        }
+        parse_max(attrs, &t->max_stack, &t->min_stack);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -350,6 +407,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
             cur_item = (sylverant_item_t *)w;
             cur_hnd = &handle_weapon;
             w->base.item_code = code;
+            w->valid_attrs = FULL_ATTR_VALID;
             TAILQ_INSERT_TAIL(l->weapons, cur_item, qentry);
             break;
         }
@@ -811,6 +869,15 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
                 }
             }
 
+            /* Check if the attribute of the weapon is valid */
+            if(i->data_b[4] > Weapon_Attr_MAX) {
+                return 0;
+            }
+
+            if(!(w->valid_attrs & (1 << i->data_b[4]))) {
+                return 0;
+            }
+
             /* If we haven't rejected yet, accept */
             return 1;
         }
@@ -1063,4 +1130,12 @@ int sylverant_limits_check_item(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Reject unknown item types... they'll probably crash people anyway. */
     return 0;
+}
+
+const char *sylverant_weapon_attr_name(sylverant_weapon_attr_t num) {
+    if(num > Weapon_Attr_MAX) {
+        return NULL;
+    }
+
+    return weapon_attrs[num];
 }
