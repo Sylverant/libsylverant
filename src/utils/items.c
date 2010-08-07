@@ -381,6 +381,8 @@ static void parse_colors(const XML_Char **attrs, uint16_t *valid) {
     str = strdup(attrs[1]);
     tok = strtok_r(str, ", ", &lasts);
 
+    *valid = 0xFFFF;
+
     /* Go through any colors in the disallow list */
     while(tok) {
         /* Look through the list of colors for what we have */
@@ -680,7 +682,6 @@ static void item_start_hnd(void *d, const XML_Char *name,
         parse_pbs(attrs, &l->default_cpb, &l->default_rpb, &l->default_lpb);
     }
     else if(!strcmp(name, "colors") && in_items && !cur_item) {
-        l->default_colors = 0xFFFF;
         parse_colors(attrs, &l->default_colors);
     }
     else if(!strcmp(name, "item") && in_items) {
