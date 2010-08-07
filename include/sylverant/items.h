@@ -120,6 +120,7 @@ typedef struct sylverant_mag {
     int min_synchro;
     int max_iq;
     int min_iq;
+    uint16_t allowed_colors;
     uint8_t allowed_cpb;
     uint8_t allowed_rpb;
     uint8_t allowed_lpb;
@@ -143,6 +144,7 @@ typedef struct sylverant_limits {
     int default_behavior;
     uint8_t check_srank_names;
     uint8_t check_pbs;
+    uint16_t default_colors;
     uint8_t default_cpb;
     uint8_t default_rpb;
     uint8_t default_lpb;

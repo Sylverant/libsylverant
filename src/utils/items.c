@@ -88,6 +88,14 @@ static const char *mag_pbs[NUM_PBS] = {
     "bad1", "bad2" /* Not legit */
 };
 
+#define NUM_COLORS 16
+
+/* List of Mag colors */
+static const char *mag_colors[NUM_COLORS] = {
+    "red", "blue", "yellow", "green", "purple", "darkpurple", "white", "cyan",
+    "brown", "black", "c10", "c11", "c12", "c13", "c14", "c15"
+};
+
 static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
     int i;
 
@@ -334,7 +342,7 @@ static void parse_pbs(const XML_Char **attrs, uint8_t *c, uint8_t *r,
     /* Go through any PBs in the disallow list */
     while(tok) {
         /* Look through the list of PBs for what we have */
-        for(i = 0; i <= NUM_PBS; ++i) {
+        for(i = 0; i < NUM_PBS; ++i) {
             if(!strcmp(mag_pbs[i], tok)) {
                 *valid &= ~(1 << i);
                 break;
@@ -342,7 +350,49 @@ static void parse_pbs(const XML_Char **attrs, uint8_t *c, uint8_t *r,
         }
 
         /* If we didn't find the PB, die */
-        if(i > NUM_PBS) {
+        if(i == NUM_PBS) {
+            free(str);
+            DIE();
+        }
+
+        /* Grab the next token, and check for it */
+        tok = strtok_r(NULL, ", ", &lasts);
+    }
+
+    /* Clean up the temporary string, since we're done */
+    free(str);
+}
+
+static void parse_colors(const XML_Char **attrs, uint16_t *valid) {
+    int i;
+    char *str, *lasts, *tok;
+
+    /* Make sure we have a sane set */
+    if(!attrs || !attrs[0] || !attrs[1] || attrs[2]) {
+        DIE();
+    }
+
+    /* The only valid attribute here is disallow */
+    if(strcmp("disallow", attrs[0])) {
+        DIE();
+    }
+
+    /* Create a temporary copy of the string for parsing */
+    str = strdup(attrs[1]);
+    tok = strtok_r(str, ", ", &lasts);
+
+    /* Go through any colors in the disallow list */
+    while(tok) {
+        /* Look through the list of colors for what we have */
+        for(i = 0; i < NUM_COLORS; ++i) {
+            if(!strcmp(mag_colors[i], tok)) {
+                *valid &= ~(1 << i);
+                break;
+            }
+        }
+
+        /* If we didn't find the color, die */
+        if(i == NUM_COLORS) {
             free(str);
             DIE();
         }
@@ -440,6 +490,9 @@ static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
     }
     else if(!strcmp(name, "pbs")) {
         parse_pbs(attrs, &m->allowed_cpb, &m->allowed_rpb, &m->allowed_lpb);
+    }
+    else if(!strcmp(name, "colors")) {
+        parse_colors(attrs, &m->allowed_colors);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -581,6 +634,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
             cur_item = (sylverant_item_t *)m;
             cur_hnd = &handle_mag;
             m->base.item_code = code;
+            m->allowed_colors = l->default_colors;
             m->allowed_cpb = l->default_cpb;
             m->allowed_rpb = l->default_rpb;
             m->allowed_lpb = l->default_lpb;
@@ -624,6 +678,10 @@ static void item_start_hnd(void *d, const XML_Char *name,
     }
     else if(!strcmp(name, "pbs") && in_items && !cur_item) {
         parse_pbs(attrs, &l->default_cpb, &l->default_rpb, &l->default_lpb);
+    }
+    else if(!strcmp(name, "colors") && in_items && !cur_item) {
+        l->default_colors = 0xFFFF;
+        parse_colors(attrs, &l->default_colors);
     }
     else if(!strcmp(name, "item") && in_items) {
         handle_item(l, attrs);
@@ -699,8 +757,9 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     /* Set the default limits behavior to allow unknown items. */
     rv->default_behavior = ITEM_DEFAULT_ALLOW;
 
-    /* Set the default behavior for photon blasts */
+    /* Set the default behavior for photon blasts/colors */
     rv->default_cpb = rv->default_rpb = rv->default_lpb = 0xFF;
+    rv->default_colors = 0xFFFF;
 
     /* Open the configuration file for reading. */
     fp = fopen(f, "r");
@@ -1232,6 +1291,14 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             if(haslpb && !(m->allowed_lpb & (1 << lpb))) {
+                return 0;
+            }
+
+            /* Parse out what the color is and check it */
+            tmp = (i->data_b[4] & 0x01) | ((i->data_b[6] & 0x01) << 1) |
+                ((i->data_b[8] & 0x01) << 2) | ((i->data_b[10] & 0x01) << 3);
+
+            if(!(m->allowed_colors & (1 << tmp))) {
                 return 0;
             }
 
