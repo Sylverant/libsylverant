@@ -120,6 +120,9 @@ typedef struct sylverant_mag {
     int min_synchro;
     int max_iq;
     int min_iq;
+    uint8_t allowed_cpb;
+    uint8_t allowed_rpb;
+    uint8_t allowed_lpb;
 } sylverant_mag_t;
 
 /* Tool information structure. */
@@ -138,7 +141,11 @@ typedef struct sylverant_limits {
     struct sylverant_item_queue *tools;
 
     int default_behavior;
-    int check_srank_names;
+    uint8_t check_srank_names;
+    uint8_t check_pbs;
+    uint8_t default_cpb;
+    uint8_t default_rpb;
+    uint8_t default_lpb;
 } sylverant_limits_t;
 
 /* Raw inventory item data */

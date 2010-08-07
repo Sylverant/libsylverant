@@ -34,6 +34,7 @@ static sylverant_item_t *cur_item = NULL;
 static void (*cur_hnd)(const XML_Char *name, const XML_Char **attrs);
 
 #define FULL_ATTR_VALID 0x1FFFFFFFFFFULL
+
 /* List of valid weapon attributes. */
 static const char *weapon_attrs[Weapon_Attr_MAX + 1] = {
     "None",
@@ -79,6 +80,14 @@ static const char *weapon_attrs[Weapon_Attr_MAX + 1] = {
     "Demon's"
 };
 
+#define NUM_PBS 8
+
+/* List of Mag Photon Blasts */
+static const char *mag_pbs[NUM_PBS] = {
+    "Farlla", "Estlla", "Leilla", "Pilla", "Golla", "Mylla&Youlla", /* Legit */
+    "Megid", "Grants" /* Not legit */
+};
+
 static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
     int i;
 
@@ -120,6 +129,18 @@ static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
             }
             else if(!strcmp(attrs[i + 1], "false")) {
                 l->check_srank_names = 0;
+            }
+            else {
+                /* Invalid option, bail. */
+                DIE();
+            }
+        }
+        else if(!strcmp(attrs[i], "check_pbs")) {
+            if(!strcmp(attrs[i + 1], "true")) {
+                l->check_pbs = 1;
+            }
+            else if(!strcmp(attrs[i + 1], "false")) {
+                l->check_pbs = 0;
             }
             else {
                 /* Invalid option, bail. */
@@ -270,6 +291,70 @@ static void parse_attrs(const XML_Char **attrs, uint64_t *valid) {
     free(str);
 }
 
+static void parse_pbs(const XML_Char **attrs, uint8_t *c, uint8_t *r,
+                      uint8_t *l) {
+    int i;
+    char *str, *lasts, *tok;
+    uint8_t *valid;
+
+    /* Make sure we have a sane set */
+    if(!attrs || !attrs[0] || !attrs[1] || !attrs[2] || !attrs[3] || attrs[4]) {
+        DIE();
+    }
+
+    /* The first attribute must be the place we're setting */
+    if(strcmp("pos", attrs[0])) {
+        DIE();
+    }
+
+    if(!strcmp("center", attrs[1])) {
+        valid = c;
+    }
+    else if(!strcmp("right", attrs[1])) {
+        valid = r;
+    }
+    else if(!strcmp("left", attrs[1])) {
+        valid = l;
+    }
+    else {
+        DIE();
+    }
+
+    /* The second attribute must be disallow */
+    if(strcmp("disallow", attrs[2])) {
+        DIE();
+    }
+
+    /* Create a temporary copy of the string for parsing */
+    str = strdup(attrs[3]);
+    tok = strtok_r(str, ", ", &lasts);
+
+    *valid = 0xFF;
+
+    /* Go through any PBs in the disallow list */
+    while(tok) {
+        /* Look through the list of PBs for what we have */
+        for(i = 0; i <= NUM_PBS; ++i) {
+            if(!strcmp(mag_pbs[i], tok)) {
+                *valid &= ~(1 << i);
+                break;
+            }
+        }
+
+        /* If we didn't find the PB, die */
+        if(i > NUM_PBS) {
+            free(str);
+            DIE();
+        }
+
+        /* Grab the next token, and check for it */
+        tok = strtok_r(NULL, ", ", &lasts);
+    }
+
+    /* Clean up the temporary string, since we're done */
+    free(str);
+}
+
 static void handle_weapon(const XML_Char *name, const XML_Char **attrs) {
     sylverant_weapon_t *w = (sylverant_weapon_t *)cur_item;
 
@@ -352,6 +437,9 @@ static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
     }
     else if(!strcmp(name, "iq")) {
         parse_max(attrs, &m->max_iq, &m->min_iq);
+    }
+    else if(!strcmp(name, "pbs")) {
+        parse_pbs(attrs, &m->allowed_cpb, &m->allowed_rpb, &m->allowed_lpb);
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -493,6 +581,9 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
             cur_item = (sylverant_item_t *)m;
             cur_hnd = &handle_mag;
             m->base.item_code = code;
+            m->allowed_cpb = l->default_cpb;
+            m->allowed_rpb = l->default_rpb;
+            m->allowed_lpb = l->default_lpb;
             TAILQ_INSERT_TAIL(l->mags, cur_item, qentry);
             break;
         }
@@ -530,6 +621,9 @@ static void item_start_hnd(void *d, const XML_Char *name,
 
     if(!strcmp(name, "items")) {
         handle_items(l, attrs);
+    }
+    else if(!strcmp(name, "pbs") && in_items && !cur_item) {
+        parse_pbs(attrs, &l->default_cpb, &l->default_rpb, &l->default_lpb);
     }
     else if(!strcmp(name, "item") && in_items) {
         handle_item(l, attrs);
@@ -604,6 +698,9 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
     /* Set the default limits behavior to allow unknown items. */
     rv->default_behavior = ITEM_DEFAULT_ALLOW;
+
+    /* Set the default behavior for photon blasts */
+    rv->default_cpb = rv->default_rpb = rv->default_lpb = 0xFF;
 
     /* Open the configuration file for reading. */
     fp = fopen(f, "r");
@@ -985,6 +1082,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_mag_t *m;
     uint16_t tmp;
     int level = 0;
+    int cpb, rpb, lpb, hascpb, hasrpb, haslpb;
 
     /* Grab the real item type, if its a v2 item, otherwise chop down to only
        16-bits */
@@ -993,6 +1091,43 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
     }
     else {
         ic = 0x02 | (i->data_b[1] << 8);
+    }
+
+    /* Grab the photon blasts */
+    cpb = i->data_b[3] & 0x07;
+    rpb = (i->data_b[3] >> 3) & 0x07;
+    lpb = (i->data_b[3] >> 6) & 0x03;
+
+    /* Figure out what slots should have PBs */
+    hascpb = i->data2_b[3] & 0x80;
+    hasrpb = i->data_b[5] & 0x80;
+    haslpb = i->data_b[7] & 0x80;
+
+    /* If we're supposed to check for obviously hacked PBs, do so */
+    if(l->check_pbs) {
+        /* Disallow hacked photon blasts (Megid/Grants) */
+        if(cpb > 5 || rpb > 5) {
+            return 0;
+        }
+
+        /* Make sure that they're marked to have PBs if they have one */
+        if(cpb && !hascpb) {
+            return 0;
+        }
+
+        if(rpb && !hasrpb) {
+            return 0;
+        }
+
+        if(lpb && !haslpb) {
+            return 0;
+        }
+
+        /* Make sure there's no overlap between center and right (left can't
+           overlap at all by design) */
+        if(hascpb && hasrpb && cpb == rpb) {
+            return 0;
+        }
     }
 
     /* Find the item in our list, if its there */
@@ -1062,6 +1197,41 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp = i->data2_b[2] | (i->data2_b[3] << 8) & 0x7FFF;
             if((m->max_synchro != -1 && tmp > m->max_synchro) ||
                (m->min_synchro != -1 && tmp < m->min_synchro)) {
+                return 0;
+            }
+
+            /* Figure out what the real left PB is... This is kinda ugly... */
+            if(haslpb) {
+                if(cpb <= lpb && rpb <= lpb) {
+                    lpb += 2;
+                }
+                else if(cpb <= lpb) {
+                    ++lpb;
+
+                    if(rpb == lpb) {
+                        ++lpb;
+                    }
+                }
+                else if(rpb <= lpb) {
+                    ++lpb;
+
+                    if(cpb == lpb) {
+                        ++lpb;
+                    }
+                }
+            }
+
+            /* Now, actually make sure that things are happy with the pbs that
+               are actually selected */
+            if(hascpb && !(m->allowed_cpb & (1 << cpb))) {
+                return 0;
+            }
+
+            if(hasrpb && !(m->allowed_rpb & (1 << rpb))) {
+                return 0;
+            }
+
+            if(haslpb && !(m->allowed_lpb & (1 << lpb))) {
                 return 0;
             }
 
