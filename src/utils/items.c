@@ -84,8 +84,8 @@ static const char *weapon_attrs[Weapon_Attr_MAX + 1] = {
 
 /* List of Mag Photon Blasts */
 static const char *mag_pbs[NUM_PBS] = {
-    "Farlla", "Estlla", "Leilla", "Pilla", "Golla", "Mylla&Youlla", /* Legit */
-    "Megid", "Grants" /* Not legit */
+    "Farlla", "Estlla", "Leilla", "Pilla", "Golla", "Mylla+Youlla", /* Legit */
+    "bad1", "bad2" /* Not legit */
 };
 
 static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
@@ -1105,7 +1105,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* If we're supposed to check for obviously hacked PBs, do so */
     if(l->check_pbs) {
-        /* Disallow hacked photon blasts (Megid/Grants) */
+        /* Disallow hacked photon blasts (that likely crash v1 clients) */
         if(cpb > 5 || rpb > 5) {
             return 0;
         }
