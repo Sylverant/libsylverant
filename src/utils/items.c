@@ -577,6 +577,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                     cur_item = (sylverant_item_t *)f;
                     cur_hnd = &handle_frame;
                     f->base.item_code = code;
+                    f->reject_max = 0;
                     break;
                 }
 
@@ -595,6 +596,7 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                     cur_item = (sylverant_item_t *)b;
                     cur_hnd = &handle_barrier;
                     b->base.item_code = code;
+                    b->reject_max = 0;
                     break;
                 }
 
