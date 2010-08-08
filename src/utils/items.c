@@ -436,6 +436,9 @@ static void handle_frame(const XML_Char *name, const XML_Char **attrs) {
     else if(!strcmp(name, "evp")) {
         parse_max(attrs, &f->max_evp, &f->min_evp);
     }
+    else if(!strcmp(name, "reject_max")) {
+        f->reject_max = 1;
+    }
     else if(!common_tag(name, attrs)) {
         DIE();
     }
@@ -449,6 +452,9 @@ static void handle_barrier(const XML_Char *name, const XML_Char **attrs) {
     }
     else if(!strcmp(name, "evp")) {
         parse_max(attrs, &b->max_evp, &b->min_evp);
+    }
+    else if(!strcmp(name, "reject_max")) {
+        b->reject_max = 1;
     }
     else if(!common_tag(name, attrs)) {
         DIE();
@@ -1050,8 +1056,8 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_frame_t *f;
     sylverant_barrier_t *b;
     sylverant_unit_t *u;
-    uint16_t tmp;
-    int16_t tmp2;
+    uint16_t dfp, evp;
+    int16_t plus;
     int type = (ic >> 8) & 0x03;
 
     /* Grab the real item type, if its a v2 item */
@@ -1077,19 +1083,24 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                        (f->min_slots != -1 && i->data_b[5] < f->min_slots)) {
                         return 0;
                     }
-                        
 
                     /* Check if the dfp boost is too high */
-                    tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if((f->max_dfp != -1 && tmp > f->max_dfp) ||
-                       (f->min_dfp != -1 && tmp < f->min_dfp)) {
+                    dfp = i->data_b[6] | (i->data_b[7] << 8);
+                    if((f->max_dfp != -1 && dfp > f->max_dfp) ||
+                       (f->min_dfp != -1 && dfp < f->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
-                    tmp = i->data_b[8] | (i->data_b[9] << 8);
-                    if((f->max_evp != -1 && tmp > f->max_evp) ||
-                       (f->min_evp != -1 && tmp < f->min_evp)) {
+                    evp = i->data_b[8] | (i->data_b[9] << 8);
+                    if((f->max_evp != -1 && evp > f->max_evp) ||
+                       (f->min_evp != -1 && evp < f->min_evp)) {
+                        return 0;
+                    }
+
+                    /* See if its maxed and we're supposed to reject that */
+                    if(f->reject_max && dfp == f->max_dfp &&
+                       evp == f->max_evp) {
                         return 0;
                     }
 
@@ -1099,16 +1110,22 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     b = (sylverant_barrier_t *)j;
 
                     /* Check if the dfp boost is too high */
-                    tmp = i->data_b[6] | (i->data_b[7] << 8);
-                    if((b->max_dfp != -1 && tmp > b->max_dfp) ||
-                       (b->min_dfp != -1 && tmp < b->min_dfp)) {
+                    dfp = i->data_b[6] | (i->data_b[7] << 8);
+                    if((b->max_dfp != -1 && dfp > b->max_dfp) ||
+                       (b->min_dfp != -1 && dfp < b->min_dfp)) {
                         return 0;
                     }
 
                     /* Check if the evp boost is too high */
-                    tmp = i->data_b[8] | (i->data_b[9] << 8);
-                    if((b->max_evp != -1 && tmp > b->max_evp) ||
-                       (b->min_evp != -1 && tmp < b->min_evp)) {
+                    evp = i->data_b[8] | (i->data_b[9] << 8);
+                    if((b->max_evp != -1 && evp > b->max_evp) ||
+                       (b->min_evp != -1 && evp < b->min_evp)) {
+                        return 0;
+                    }
+
+                    /* See if its maxed and we're supposed to reject that */
+                    if(b->reject_max && dfp == b->max_dfp &&
+                       evp == b->max_evp) {
                         return 0;
                     }
 
@@ -1118,9 +1135,9 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     u = (sylverant_unit_t *)j;
 
                     /* Check the Plus/Minus number */
-                    tmp2 = i->data_b[6] | (i->data_b[7] << 8);
-                    if((u->max_plus != INT_MIN && tmp2 > u->max_plus) ||
-                       (u->min_plus != INT_MIN && tmp2 < u->min_plus)) {
+                    plus = i->data_b[6] | (i->data_b[7] << 8);
+                    if((u->max_plus != INT_MIN && plus > u->max_plus) ||
+                       (u->min_plus != INT_MIN && plus < u->min_plus)) {
                         return 0;
                     }
 

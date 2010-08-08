@@ -82,6 +82,7 @@ typedef struct sylverant_frame {
     int min_dfp;
     int max_evp;
     int min_evp;
+    int reject_max;
 } sylverant_frame_t;
 
 /* Barrier information structure. */
@@ -92,6 +93,7 @@ typedef struct sylverant_barrier {
     int min_dfp;
     int max_evp;
     int min_evp;
+    int reject_max;
 } sylverant_barrier_t;
 
 /* Unit information structure. */
