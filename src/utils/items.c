@@ -84,7 +84,7 @@ static const char *weapon_attrs[Weapon_Attr_MAX + 1] = {
 
 /* List of Mag Photon Blasts */
 static const char *mag_pbs[NUM_PBS] = {
-    "Farlla", "Estlla", "Leilla", "Pilla", "Golla", "Mylla+Youlla", /* Legit */
+    "Farlla", "Estlla", "Golla", "Pilla", "Leilla", "Mylla+Youlla", /* Legit */
     "bad1", "bad2" /* Not legit */
 };
 
