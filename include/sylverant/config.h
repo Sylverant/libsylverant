@@ -88,6 +88,7 @@ typedef struct silverant_ship {
     char key_file[256];
     char gm_file[256];
     char limits_file[256];
+    char motd_file[256];
     char **info_files;
     char **info_files_desc;
     char *quests_file;

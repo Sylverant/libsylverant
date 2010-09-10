@@ -195,6 +195,16 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
             }
         }
     }
+    else if(!strcmp(name, "motd") && in_ship) {
+        if(!attrs || !attrs[0] || !attrs[1] || attrs[2]) {
+            return;
+        }
+
+        if(!strcmp(attrs[0], "file")) {
+            strncpy(cur->motd_file, attrs[1], 255);
+            cur->motd_file[255] = '\0';
+        }
+    }
 }
 
 static void cfg_end_hnd(void *d, const XML_Char *name) {
