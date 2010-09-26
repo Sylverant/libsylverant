@@ -83,7 +83,7 @@ typedef struct sylverant_config {
     } colors;
 } sylverant_config_t;
 
-typedef struct silverant_ship {
+typedef struct sylverant_ship {
     char name[256];
     char key_file[256];
     char gm_file[256];
@@ -95,6 +95,7 @@ typedef struct silverant_ship {
 
     uint32_t ship_ip;
     uint16_t base_port;
+    uint16_t menu_code;
 
     int blocks;
     int info_file_count;

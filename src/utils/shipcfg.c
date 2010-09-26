@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <expat.h>
+#include <ctype.h>
 
 #include <arpa/inet.h>
 
@@ -75,6 +76,14 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
                     strncpy(cfg->ships[cfg->ship_count - 1].gm_file,
                             attrs[i + 1], 255);
                     cfg->ships[cfg->ship_count - 1].gm_file[255] = '\0';
+                }
+                else if(!strcmp(attrs[i], "menu")) {
+                    if(strlen(attrs[i + 1]) == 2 && isalpha(attrs[i + 1][0]) &&
+                       isalpha(attrs[i + 1][1])) {
+                        cfg->ships[cfg->ship_count - 1].menu_code =
+                            ((uint16_t)attrs[i + 1][0]) |
+                            (((uint16_t)(attrs[i + 1][1])) << 8);
+                    }
                 }
             }
         }
