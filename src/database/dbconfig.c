@@ -67,7 +67,7 @@ int sylverant_read_dbconfig(sylverant_dbconfig_t *cfg) {
     void *buf;
 
     /* Open the configuration file for reading. */
-    fp = fopen(SYLVERANT_CFG, "r");
+    fp = fopen(sylverant_cfg, "r");
 
     if(!fp) {
         return -1;

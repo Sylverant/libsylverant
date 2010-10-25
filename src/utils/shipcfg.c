@@ -242,7 +242,7 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
 
     /* Open the configuration file for reading. */
     if(!f) {
-        fp = fopen(SYLVERANT_SHIP_CFG, "r");
+        fp = fopen(sylverant_ship_cfg, "r");
     }
     else {
         fp = fopen(f, "r");

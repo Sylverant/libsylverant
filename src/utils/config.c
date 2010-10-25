@@ -172,7 +172,7 @@ int sylverant_read_config(sylverant_config_t *cfg) {
     memset(cfg, 0, sizeof(sylverant_config_t));
 
     /* Open the configuration file for reading. */
-    fp = fopen(SYLVERANT_CFG, "r");
+    fp = fopen(sylverant_cfg, "r");
 
     if(!fp) {
         return -1;

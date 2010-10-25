@@ -58,6 +58,7 @@ MYSQL_CLIENT_CFLAGS=
 AS_IF([test "x$with_mysql" != xno], [MYSQL_CLIENT()])
 
 AM_CONDITIONAL([MYSQL], [test "x$with_mysql" != xno])
+AX_DEFINE_DIR([DATAROOTDIR], [datarootdir])
 
 AC_CONFIG_FILES([Makefile
                  include/Makefile

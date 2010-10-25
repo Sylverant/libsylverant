@@ -110,7 +110,7 @@ int sylverant_read_proxy_config(sylverant_proxycfg_t *cfg) {
     memset(cfg, 0, sizeof(sylverant_proxycfg_t));
 
     /* Open the configuration file for reading. */
-    fp = fopen(SYLVERANT_PROXY_CFG, "r");
+    fp = fopen(sylverant_proxy_cfg, "r");
 
     if(!fp) {
         return -1;

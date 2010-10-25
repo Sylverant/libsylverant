@@ -21,13 +21,11 @@
 
 #include <stdint.h>
 
-#ifndef SYLVERANT_DIRECTORY
-#define SYLVERANT_DIRECTORY "/usr/local/share/sylverant"
-#endif
-
-#define SYLVERANT_CFG SYLVERANT_DIRECTORY "/config/sylverant_config.xml"
-#define SYLVERANT_SHIP_CFG SYLVERANT_DIRECTORY "/config/ship_config.xml"
-#define SYLVERANT_PROXY_CFG SYLVERANT_DIRECTORY "/config/proxy_config.xml"
+/* Various directories and files */
+extern const char sylverant_directory[];
+extern const char sylverant_cfg[];
+extern const char sylverant_ship_cfg[];
+extern const char sylverant_proxy_cfg[];
 
 /* Values for the shipgate flags portion of ships/proxies. */
 #define SHIPGATE_FLAG_GMONLY    0x00000001
