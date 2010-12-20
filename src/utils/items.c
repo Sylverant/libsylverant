@@ -757,7 +757,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     }
 
     /* Initialize the buckets. After this block, its safe to actually use the
-       sylverant_clean_limits function to clean up things. */
+       sylverant_free_limits function to clean up things. */
     TAILQ_INIT(rv->weapons);
     TAILQ_INIT(rv->guards);
     TAILQ_INIT(rv->mags);
@@ -774,7 +774,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     fp = fopen(f, "r");
 
     if(!fp) {
-        sylverant_clean_limits(rv);
+        sylverant_free_limits(rv);
         *l = NULL;
         return -1;
     }
@@ -784,7 +784,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
     if(!p)  {
         fclose(fp);
-        sylverant_clean_limits(rv);
+        sylverant_free_limits(rv);
         *l = NULL;
         return -2;
     }
@@ -805,7 +805,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
             printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
-            sylverant_clean_limits(rv);
+            sylverant_free_limits(rv);
             fclose(fp);
             *l = NULL;
             parser = NULL;
@@ -823,7 +823,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
             printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
-            sylverant_clean_limits(rv);
+            sylverant_free_limits(rv);
             fclose(fp);
             *l = NULL;
             parser = NULL;
@@ -839,7 +839,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
             printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
-            sylverant_clean_limits(rv);
+            sylverant_free_limits(rv);
             fclose(fp);
             *l = NULL;
             parser = NULL;
@@ -881,7 +881,7 @@ static void clean_list(struct sylverant_item_queue *q) {
     free(q);
 }
 
-int sylverant_clean_limits(sylverant_limits_t *l) {
+int sylverant_free_limits(sylverant_limits_t *l) {
     sylverant_item_t *i, *tmp;
 
     /* Go through each list to clean up the information in it. */
