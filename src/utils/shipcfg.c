@@ -309,6 +309,7 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
     }
 
     XML_ParserFree(p);
+    fclose(fp);
     *cfg = rv;
 
     return 0;

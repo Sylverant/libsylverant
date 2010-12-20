@@ -855,6 +855,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     }
 
     XML_ParserFree(p);
+    fclose(fp);
     *l = rv;
     parser = NULL;
     in_items = swap_code = 0;

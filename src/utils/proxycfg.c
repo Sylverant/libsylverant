@@ -137,6 +137,7 @@ int sylverant_read_proxy_config(sylverant_proxycfg_t *cfg) {
 
         if(!buf)    {
             XML_ParserFree(p);
+            fclose(fp);
             return -2;
         }
 
@@ -145,12 +146,14 @@ int sylverant_read_proxy_config(sylverant_proxycfg_t *cfg) {
 
         if(bytes < 0)   {
             XML_ParserFree(p);
+            fclose(fp);
             return -2;
         }
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
             XML_ParserFree(p);
+            fclose(fp);
             return -3;
         }
 
@@ -160,6 +163,7 @@ int sylverant_read_proxy_config(sylverant_proxycfg_t *cfg) {
     }
 
     XML_ParserFree(p);
+    fclose(fp);
 
     return 0;
 }

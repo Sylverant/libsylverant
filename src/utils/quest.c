@@ -289,6 +289,7 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
             printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
+            fclose(fp);
             return -2;
         }
 
@@ -297,6 +298,7 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
 
         if(bytes < 0)   {
             XML_ParserFree(p);
+            fclose(fp);
             return -2;
         }
 
@@ -306,6 +308,7 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
             printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
+            fclose(fp);
             return -3;
         }
 
@@ -315,6 +318,8 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
     }
 
     XML_ParserFree(p);
+    fclose(fp);
+
     return 0;
 }
 
