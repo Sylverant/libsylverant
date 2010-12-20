@@ -328,7 +328,10 @@ int sylverant_free_ship_config(sylverant_shipcfg_t *cfg) {
                 }
 
                 free(cfg->ships[i].info_files);
+                free(cfg->ships[i].info_files_desc);
             }
+
+            free(cfg->ships[i].quests_file);
         }
 
         /* Clean up the base structure. */
