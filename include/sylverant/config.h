@@ -92,6 +92,8 @@ typedef struct sylverant_ship {
     char *quests_file;
 
     uint32_t ship_ip;
+    uint32_t shipgate_flags;
+
     uint16_t base_port;
     uint16_t menu_code;
 

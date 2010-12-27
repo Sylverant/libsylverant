@@ -85,6 +85,12 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
                             (((uint16_t)(attrs[i + 1][1])) << 8);
                     }
                 }
+                else if(!strcmp(attrs[i], "gmonly")) {
+                    if(!strcmp(attrs[i + 1], "true")) {
+                        cfg->ships[cfg->ship_count - 1].shipgate_flags |=
+                            SHIPGATE_FLAG_GMONLY;
+                    }
+                }
             }
         }
     }
