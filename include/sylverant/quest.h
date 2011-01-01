@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -39,6 +39,7 @@ typedef struct sylverant_quest {
 
     uint32_t versions;
     int episode;
+    int event;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

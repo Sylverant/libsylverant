@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -108,8 +108,9 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
         /* Clear the category */
         memset(quest, 0, sizeof(sylverant_quest_t));
 
-        /* Default to episode 1. */
+        /* Default to episode 1 and always available */
         quest->episode = 1;
+        quest->event = -1;
 
         for(i = 0; attrs[i]; i += 2) {
             if(!strcmp(attrs[i], "name")) {
@@ -150,6 +151,9 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
             }
             else if(!strcmp(attrs[i], "episode")) {
                 quest->episode = atoi(attrs[i + 1]);
+            }
+            else if(!strcmp(attrs[i], "event")) {
+                quest->event = atoi(attrs[i + 1]);
             }
         }
     }
