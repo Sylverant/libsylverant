@@ -30,6 +30,9 @@
 #define SYLVERANT_QUEST_BATTLE      (1 << 1)
 #define SYLVERANT_QUEST_CHALLENGE   (1 << 2)
 
+#define SYLVERANT_QUEST_BINDAT      0
+#define SYLVERANT_QUEST_QST         1
+
 typedef struct sylverant_quest {
     char name[32];
     char desc[112];
@@ -40,6 +43,7 @@ typedef struct sylverant_quest {
     uint32_t versions;
     int episode;
     int event;
+    int format;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

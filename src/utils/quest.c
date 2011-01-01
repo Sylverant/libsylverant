@@ -102,10 +102,10 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
 
         cat->quests = (sylverant_quest_t *)tmp;
 
-        /* Grab the pointer to this category */
+        /* Grab the pointer to this quest */
         quest = cat->quests + cat->quest_count++;
 
-        /* Clear the category */
+        /* Clear the quest */
         memset(quest, 0, sizeof(sylverant_quest_t));
 
         /* Default to episode 1 and always available */
@@ -154,6 +154,14 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
             }
             else if(!strcmp(attrs[i], "event")) {
                 quest->event = atoi(attrs[i + 1]);
+            }
+            else if(!strcmp(attrs[i], "format")) {
+                if(!strcmp(attrs[i + 1], "qst")) {
+                    quest->format = SYLVERANT_QUEST_QST;
+                }
+                else if(!strcmp(attrs[i + 1], "bin/dat")) {
+                    quest->format = SYLVERANT_QUEST_BINDAT;
+                }
             }
         }
     }
