@@ -34,13 +34,16 @@
 #define SYLVERANT_QUEST_QST         1
 
 typedef struct sylverant_quest {
+    uint32_t qid;
+    uint32_t versions;
+
     char name[32];
     char desc[112];
 
     char *long_desc;
     char *prefix;
+    void *user_data;
 
-    uint32_t versions;
     int episode;
     int event;
     int format;
@@ -50,8 +53,8 @@ typedef struct sylverant_qcat {
     char name[32];
     char desc[112];
 
-    int quest_count;
     uint32_t type;
+    int quest_count;
     sylverant_quest_t *quests;
 } sylverant_quest_category_t;
 

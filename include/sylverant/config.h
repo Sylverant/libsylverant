@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -90,6 +90,7 @@ typedef struct sylverant_ship {
     char **info_files;
     char **info_files_desc;
     char *quests_file;
+    char *quests_dir;
 
     uint32_t ship_ip;
     uint32_t shipgate_flags;

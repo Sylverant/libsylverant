@@ -20,11 +20,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <expat.h>
+#include <errno.h>
 
 #include "sylverant/quest.h"
 
 #define BUF_SIZE 8192
+#define DIE() XML_StopParser(parser, 0); return
 
+static XML_Parser parser = NULL;
 static sylverant_quest_category_t *cat = NULL;
 static sylverant_quest_t *quest = NULL;
 static int text_type = -1;
@@ -37,7 +40,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
     if(!strcmp(name, "category")) {
         /* Make sure we should expect a <category> here */
         if(cat != NULL) {
-            return;
+            DIE();
         }
 
         /* Allocate space for the new category */
@@ -46,7 +49,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
 
         /* Make sure we got the space */
         if(!tmp) {
-            return;
+            DIE();
         }
 
         l->cats = (sylverant_quest_category_t *)tmp;
@@ -72,14 +75,17 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
                 }
                 else if(!strcmp(attrs[i + 1], "challenge")) {
                     cat->type = SYLVERANT_QUEST_CHALLENGE;
-                }
+               }
+            }
+            else {
+                DIE();
             }
         }
     }
     else if(!strcmp(name, "description")) {
         /* Make sure we're expecting a <description> here */
         if(cat == NULL || quest != NULL) {
-            return;
+            DIE();
         }
 
         /* Set up the text type */
@@ -88,7 +94,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
     else if(!strcmp(name, "quest")) {
         /* Make sure we're expecting a <quest> here */
         if(cat == NULL || quest != NULL) {
-            return;
+            DIE();
         }
 
         /* Allocate space for the new quest */
@@ -97,7 +103,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
 
         /* Make sure we got the space */
         if(!tmp) {
-            return;
+            DIE();
         }
 
         cat->quests = (sylverant_quest_t *)tmp;
@@ -143,7 +149,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
                     quest->prefix = (char *)malloc(strlen(attrs[i + 1]) + 1);
 
                     if(!quest->prefix) {
-                        continue;
+                        DIE();
                     }
 
                     strcpy(quest->prefix, attrs[i + 1]);
@@ -162,13 +168,27 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
                 else if(!strcmp(attrs[i + 1], "bin/dat")) {
                     quest->format = SYLVERANT_QUEST_BINDAT;
                 }
+                else {
+                    DIE();
+                }
+            }
+            else if(!strcmp(attrs[i], "id")) {
+                errno = 0;
+                quest->qid = (uint32_t)strtoul(attrs[i + 1], NULL, 0);
+
+                if(errno) {
+                    DIE();
+                }
+            }
+            else {
+                DIE();
             }
         }
     }
     else if(!strcmp(name, "short")) {
         /* Make sure we're expecting a <short> here */
         if(cat == NULL || quest == NULL) {
-            return;
+            DIE();
         }
 
         /* Set up the text type */
@@ -177,7 +197,7 @@ static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
     else if(!strcmp(name, "long")) {
         /* Make sure we're expecting a <long> here */
         if(cat == NULL || quest == NULL) {
-            return;
+            DIE();
         }
 
         /* Set up the text type */
@@ -247,7 +267,7 @@ static void q_text_hnd(void *d, const XML_Char *s, int len) {
 
         /* Make sure we got the memory */
         if(!tmp) {
-            return;
+            DIE();
         }
 
         /* Save the pointer where it belongs */
@@ -292,6 +312,8 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
     /* Set up the user data so we can store the configuration. */
     XML_SetUserData(p, rv);
 
+    parser = p;
+
     for(;;) {
         /* Grab the buffer to read into. */
         buf = XML_GetBuffer(p, BUF_SIZE);
@@ -302,6 +324,10 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             fclose(fp);
+            parser = NULL;
+            cat = NULL;
+            quest = NULL;
+            text_type = -1;
             return -2;
         }
 
@@ -311,6 +337,10 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
         if(bytes < 0)   {
             XML_ParserFree(p);
             fclose(fp);
+            parser = NULL;
+            cat = NULL;
+            quest = NULL;
+            text_type = -1;
             return -2;
         }
 
@@ -321,6 +351,10 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
                    (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             fclose(fp);
+            parser = NULL;
+            cat = NULL;
+            quest = NULL;
+            text_type = -1;
             return -3;
         }
 
@@ -331,6 +365,11 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
 
     XML_ParserFree(p);
     fclose(fp);
+
+    parser = NULL;
+    cat = NULL;
+    quest = NULL;
+    text_type = -1;
 
     return 0;
 }

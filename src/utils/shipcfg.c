@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -149,11 +149,26 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
     }
     else if(!strcmp(name, "quests") && in_ship) {
         /* Only pay attention to the first <quests> in a ship. */
-        if(!cur->quests_file) {
+        if(!cur->quests_file && !cur->quests_dir) {
             for(i = 0; attrs[i]; i += 2) {
                 if(!strcmp(attrs[i], "file")) {
+                    /* Ignore the file if its given with a directory */
+                    if(cur->quests_dir) {
+                        return;
+                    }
+
                     cur->quests_file = (char *)malloc(strlen(attrs[i + 1]) + 1);
                     strcpy(cur->quests_file, attrs[i + 1]);
+                }
+                else if(!strcmp(attrs[i], "dir")) {
+                    /* The dir directive overrides the file directive */
+                    if(cur->quests_file) {
+                        free(cur->quests_file);
+                        cur->quests_file = NULL;
+                    }
+
+                    cur->quests_dir = (char *)malloc(strlen(attrs[i + 1]) + 1);
+                    strcpy(cur->quests_dir, attrs[i + 1]);
                 }
             }
         }
@@ -282,6 +297,9 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
         buf = XML_GetBuffer(p, BUF_SIZE);
 
         if(!buf)    {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             free(rv);
             fclose(fp);
@@ -293,6 +311,9 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
         bytes = fread(buf, 1, BUF_SIZE, fp);
 
         if(bytes < 0)   {
+            printf("Error reading file\n");
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             free(rv);
             fclose(fp);
@@ -302,6 +323,9 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
+            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
+            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
+                   (int)XML_GetCurrentColumnNumber(p));
             XML_ParserFree(p);
             free(rv);
             fclose(fp);
