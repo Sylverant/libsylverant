@@ -33,6 +33,9 @@ static int in_items = 0, swap_code = 0;
 static sylverant_item_t *cur_item = NULL;
 static void (*cur_hnd)(const XML_Char *name, const XML_Char **attrs);
 
+/* Lazy, lazy, lazy */
+typedef int8_t s8;
+
 #define FULL_ATTR_VALID 0x1FFFFFFFFFFULL
 
 /* List of valid weapon attributes. */
@@ -1019,24 +1022,24 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             /* Check each percent */
             if(!is_named_srank) {
                 if(w->max_percents != -1) {
-                    if((i->data_b[6] && i->data_b[7] > w->max_percents) ||
-                       (i->data_b[8] && i->data_b[9] > w->max_percents) ||
-                       (i->data_b[10] && i->data_b[11] > w->max_percents)) {
+                    if((i->data_b[6] && (s8)i->data_b[7] > w->max_percents) ||
+                       (i->data_b[8] && (s8)i->data_b[9] > w->max_percents) ||
+                       (i->data_b[10] && (s8)i->data_b[11] > w->max_percents)) {
                         return 0;
                     }
                 }
 
                 if(w->min_percents != -1) {
-                    if((i->data_b[6] && i->data_b[7] < w->min_percents) ||
-                       (i->data_b[8] && i->data_b[9] < w->min_percents) ||
-                       (i->data_b[10] && i->data_b[11] < w->min_percents)) {
+                    if((i->data_b[6] && (s8)i->data_b[7] < w->min_percents) ||
+                       (i->data_b[8] && (s8)i->data_b[9] < w->min_percents) ||
+                       (i->data_b[10] && (s8)i->data_b[11] < w->min_percents)) {
                         return 0;
                     }
                 }
             }
 
             /* Check if the attribute of the weapon is valid */
-            if(i->data_b[4] > Weapon_Attr_MAX) {
+            if((i->data_b[4] & 0x7F) > Weapon_Attr_MAX) {
                 return 0;
             }
 
