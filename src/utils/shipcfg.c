@@ -235,6 +235,30 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
             cur->motd_file[255] = '\0';
         }
     }
+    else if(!strcmp(name, "versions") && in_ship) {
+        for(i = 0; attrs[i]; i += 2) {
+            if(!strcmp(attrs[i], "v1")) {
+                if(!strcmp(attrs[i + 1], "false")) {
+                    cur->shipgate_flags |= SHIPGATE_FLAG_NOV1;
+                }
+            }
+            else if(!strcmp(attrs[i], "v1")) {
+                if(!strcmp(attrs[i + 1], "false")) {
+                    cur->shipgate_flags |= SHIPGATE_FLAG_NOV2;
+                }
+            }
+            else if(!strcmp(attrs[i], "pc")) {
+                if(!strcmp(attrs[i + 1], "false")) {
+                    cur->shipgate_flags |= SHIPGATE_FLAG_NOPC;
+                }
+            }
+            else if(!strcmp(attrs[i], "gc")) {
+                if(!strcmp(attrs[i + 1], "false")) {
+                    cur->shipgate_flags |= SHIPGATE_FLAG_NOEP12;
+                }
+            }
+        }
+    }
 }
 
 static void cfg_end_hnd(void *d, const XML_Char *name) {

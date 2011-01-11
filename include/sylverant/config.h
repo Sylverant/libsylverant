@@ -29,6 +29,10 @@ extern const char sylverant_proxy_cfg[];
 
 /* Values for the shipgate flags portion of ships/proxies. */
 #define SHIPGATE_FLAG_GMONLY    0x00000001
+#define SHIPGATE_FLAG_NOV1      0x00000010
+#define SHIPGATE_FLAG_NOV2      0x00000020
+#define SHIPGATE_FLAG_NOPC      0x00000040
+#define SHIPGATE_FLAG_NOEP12    0x00000080
 
 typedef struct sylverant_dbconfig {
     char type[256];
