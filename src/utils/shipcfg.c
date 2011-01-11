@@ -242,7 +242,7 @@ static void cfg_start_hnd(void *d, const XML_Char *name,
                     cur->shipgate_flags |= SHIPGATE_FLAG_NOV1;
                 }
             }
-            else if(!strcmp(attrs[i], "v1")) {
+            else if(!strcmp(attrs[i], "v2")) {
                 if(!strcmp(attrs[i + 1], "false")) {
                     cur->shipgate_flags |= SHIPGATE_FLAG_NOV2;
                 }
