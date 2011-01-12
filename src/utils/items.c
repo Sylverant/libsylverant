@@ -1387,6 +1387,10 @@ int sylverant_limits_check_item(sylverant_limits_t *l, sylverant_iitem_t *i,
 
         case ITEM_TYPE_TOOL:
             return check_tool(l, i, version, item_code);
+
+        case ITEM_TYPE_MESETA:
+            /* Always pass... */
+            return 1;
     }
 
     /* Reject unknown item types... they'll probably crash people anyway. */

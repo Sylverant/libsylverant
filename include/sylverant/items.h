@@ -29,6 +29,7 @@
 #define ITEM_TYPE_GUARD         0x01
 #define ITEM_TYPE_MAG           0x02
 #define ITEM_TYPE_TOOL          0x03
+#define ITEM_TYPE_MESETA        0x04
 
 /* ITEM_TYPE_GUARD items are actually slightly more specialized, and fall into
    three subtypes of their own. These are the second least significant byte in
