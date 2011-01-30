@@ -1,9 +1,18 @@
 // Reversed from the original PPC ASM by Fuzziqer Software, 2004 
 // Modified by Lawrence Sebald (2009) to run properly when compiled for a 64-bit
-// machine.
+// machine and (2011) to run properly on a big endian machine.
 
 #include <stdio.h>
 #include "sylverant/encryption.h"
+
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+#define LE32(x) (((x >> 24) & 0x00FF) | \
+                 ((x >>  8) & 0xFF00) | \
+                 ((x & 0xFF00) <<  8) | \
+                 ((x & 0x00FF) << 24))
+#else
+#define LE32(x) x
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // GameCube Encryption Source 
@@ -90,13 +99,15 @@ void CRYPT_GC_CreateKeys(CRYPT_SETUP* cs,uint32_t seed)
 
 void CRYPT_GC_CryptData(CRYPT_SETUP* c,void* data,unsigned long size)
 {
-    uint32_t *address_start,*address_end;
+    uint32_t *address_start,*address_end, tmp;
+
     address_start = (uint32_t*)data;
     address_end = (uint32_t*)((uint8_t*)data + size);
+
     while (address_start < address_end)
     {
-        *address_start = *address_start ^ CRYPT_GC_GetNextKey(c);
-        address_start++;
+        tmp = CRYPT_GC_GetNextKey(c);
+        *address_start++ = *address_start ^ LE32(tmp);
     }
 }
 
