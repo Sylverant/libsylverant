@@ -25,7 +25,6 @@
 extern const char sylverant_directory[];
 extern const char sylverant_cfg[];
 extern const char sylverant_ship_cfg[];
-extern const char sylverant_proxy_cfg[];
 
 /* Values for the shipgate flags portion of ships/proxies. */
 #define SHIPGATE_FLAG_GMONLY    0x00000001
@@ -126,20 +125,6 @@ typedef struct sylverant_shipcfg {
     sylverant_ship_t ships[0];
 } sylverant_shipcfg_t;
 
-typedef struct sylverant_proxycfg {
-    uint32_t shipgate_flags;
-    uint32_t shipgate_ip;
-    uint32_t proxy_ip;
-    uint32_t server_ip;
-    
-    uint16_t shipgate_port;
-    uint16_t base_port;
-
-    char name[256];
-    char key_file[256];
-    char packets[256];
-} sylverant_proxycfg_t;
-
 /* For when you only want database configuration. */
 extern int sylverant_read_dbconfig(sylverant_dbconfig_t *cfg);
 
@@ -152,8 +137,5 @@ extern int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg);
 
 /* Clean up a ship configuration structure. */
 extern int sylverant_free_ship_config(sylverant_shipcfg_t *cfg);
-
-/* Read the proxy configuration data. */
-int sylverant_read_proxy_config(sylverant_proxycfg_t *cfg);
 
 #endif /* !SYLVERANT__CONFIG_H */

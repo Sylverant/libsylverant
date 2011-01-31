@@ -31,5 +31,3 @@
 const char sylverant_directory[] = SYLVERANT_DIRECTORY;
 const char sylverant_cfg[] = SYLVERANT_DIRECTORY "/config/sylverant_config.xml";
 const char sylverant_ship_cfg[] = SYLVERANT_DIRECTORY "/config/ship_config.xml";
-const char sylverant_proxy_cfg[] =
-    SYLVERANT_DIRECTORY "/config/proxy_config.xml";
