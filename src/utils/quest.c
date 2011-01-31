@@ -198,7 +198,6 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
 
 err:
     xmlFree(name);
-    xmlFree(prefix);
     xmlFree(v1);
     xmlFree(v2);
     xmlFree(gc);
