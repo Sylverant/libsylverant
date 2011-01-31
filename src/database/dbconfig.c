@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -17,103 +17,151 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <expat.h>
+
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "sylverant/config.h"
+#include "sylverant/debug.h"
 
-#define BUF_SIZE 8192
+#ifndef LIBXML_TREE_ENABLED
+#error You must have libxml2 with tree support built-in.
+#endif
 
-void dbcfg_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
-    int i;
-    sylverant_dbconfig_t *cfg = (sylverant_dbconfig_t *)d;
+#define XC (const xmlChar *)
 
-    if(!strcmp(name, "database"))   {
-        for(i = 0; attrs[i]; i += 2)    {
-            if(!strcmp(attrs[i], "type"))   {
-                strncpy(cfg->type, attrs[i + 1], 255);
-                cfg->type[255] = '\0';
-            }
-            else if(!strcmp(attrs[i], "host"))  {
-                strncpy(cfg->host, attrs[i + 1], 255);
-                cfg->host[255] = '\0';
-            }
-            else if(!strcmp(attrs[i], "user"))  {
-                strncpy(cfg->user, attrs[i + 1], 255);
-                cfg->user[255] = '\0';
-            }
-            else if(!strcmp(attrs[i], "pass"))  {
-                strncpy(cfg->pass, attrs[i + 1], 255);
-                cfg->pass[255] = '\0';
-            }
-            else if(!strcmp(attrs[i], "db"))    {
-                strncpy(cfg->db, attrs[i + 1], 255);
-                cfg->db[255] = '\0';
-            }
-            else if(!strcmp(attrs[i], "port"))  {
-                cfg->port = atoi(attrs[i + 1]);
-            }
-        }
+static int handle_database(xmlNode *n, sylverant_dbconfig_t *cur) {
+    xmlChar *type, *host, *user, *pass, *db, *port;
+    int rv;
+    unsigned long rv2;
+
+    /* Grab the attributes of the tag. */
+    type = xmlGetProp(n, XC"type");
+    host = xmlGetProp(n, XC"host");
+    user = xmlGetProp(n, XC"user");
+    pass = xmlGetProp(n, XC"pass");
+    db = xmlGetProp(n, XC"db");
+    port = xmlGetProp(n, XC"port");
+
+    /* Make sure we have all of them... */
+    if(!type || !host || !user || !pass || !db || !port) {
+        debug(DBG_ERROR, "Incomplete database tag\n");
+        rv = -1;
+        goto err;
     }
-}
 
-void dbcfg_end_hnd(void *d, const XML_Char *name)   {
+    /* Copy out the strings */
+    strncpy(cur->type, (char *)type, 255);
+    strncpy(cur->host, (char *)host, 255);
+    strncpy(cur->user, (char *)user, 255);
+    strncpy(cur->pass, (char *)pass, 255);
+    strncpy(cur->db, (char *)db, 255);
+
+    cur->type[255] = '\0';
+    cur->host[255] = '\0';
+    cur->user[255] = '\0';
+    cur->pass[255] = '\0';
+    cur->db[255] = '\0';
+
+    /* Parse the port out */
+    rv2 = strtoul((char *)port, NULL, 0);
+
+    if(rv2 == 0 || rv2 > 0xFFFF) {
+        debug(DBG_ERROR, "Invalid port given for database: %s\n", (char *)port);
+        rv = -3;
+        goto err;
+    }
+
+    cur->port = (unsigned int)rv2;
+    rv = 0;
+
+err:
+    xmlFree(type);
+    xmlFree(host);
+    xmlFree(user);
+    xmlFree(pass);
+    xmlFree(db);
+    xmlFree(port);
+    return rv;
 }
 
 int sylverant_read_dbconfig(sylverant_dbconfig_t *cfg) {
-    FILE *fp;
-    XML_Parser p;
-    int bytes;
-    void *buf;
+    xmlParserCtxtPtr cxt;
+    xmlDoc *doc;
+    xmlNode *n;
+    int irv = 0;
+
+    /* Clear out the config. */
+    memset(cfg, 0, sizeof(sylverant_config_t));
+
+    /* Create an XML Parsing context */
+    cxt = xmlNewParserCtxt();
+    if(!cxt) {
+        debug(DBG_ERROR, "Couldn't create parsing context for config\n");
+        irv = -1;
+        goto err;
+    }
 
     /* Open the configuration file for reading. */
-    fp = fopen(sylverant_cfg, "r");
+    doc = xmlReadFile(sylverant_cfg, NULL, XML_PARSE_DTDVALID);
 
-    if(!fp) {
-        return -1;
+    if(!doc) {
+        xmlParserError(cxt, "Error in parsing config");
+        irv = -2;
+        goto err_cxt;
     }
 
-    /* Create the XML parser object. */
-    p = XML_ParserCreate(NULL);
-
-    if(!p)  {
-        fclose(fp);
-        return -2;
+    /* Make sure the document validated properly. */
+    if(!cxt->valid) {
+        xmlParserValidityError(cxt, "Validity Error parsing config");
+        irv = -3;
+        goto err_doc;
     }
 
-    XML_SetElementHandler(p, &dbcfg_start_hnd, &dbcfg_end_hnd);
+    /* If we've gotten this far, we have a valid document, now go through and
+       add in entries for everything... */
+    n = xmlDocGetRootElement(doc);
 
-    /* Set up the user data so we can store the configuration. */
-    XML_SetUserData(p, cfg);
-
-    for(;;) {
-        /* Grab the buffer to read into. */
-        buf = XML_GetBuffer(p, BUF_SIZE);
-
-        if(!buf)    {
-            XML_ParserFree(p);
-            return -2;
-        }
-
-        /* Read in from the file. */
-        bytes = fread(buf, 1, BUF_SIZE, fp);
-
-        if(bytes < 0)   {
-            XML_ParserFree(p);
-            return -2;
-        }
-
-        /* Parse the bit we read in. */
-        if(!XML_ParseBuffer(p, bytes, !bytes))  {
-            XML_ParserFree(p);
-            return -3;
-        }
-
-        if(!bytes)  {
-            break;
-        }
+    if(!n) {
+        debug(DBG_WARN, "Empty config document\n");
+        irv = -4;
+        goto err_doc;
     }
 
-    XML_ParserFree(p);
-    return 0;
+    /* Make sure the config looks sane. */
+    if(xmlStrcmp(n->name, XC"sylverant_config")) {
+        debug(DBG_WARN, "Config does not appear to be the right type\n");
+        irv = -5;
+        goto err_doc;
+    }
+
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"database")) {
+            if(handle_database(n, cfg)) {
+                irv = -6;
+                goto err_doc;
+            }
+        }
+
+        n = n->next;
+    }
+
+    /* Cleanup/error handling below... */
+err_doc:
+    xmlFreeDoc(doc);
+err_cxt:
+    xmlFreeParserCtxt(cxt);
+err:
+    return irv;
 }
