@@ -33,6 +33,7 @@ extern const char sylverant_proxy_cfg[];
 #define SHIPGATE_FLAG_NOV2      0x00000020
 #define SHIPGATE_FLAG_NOPC      0x00000040
 #define SHIPGATE_FLAG_NOEP12    0x00000080
+#define SHIPGATE_FLAG_NOEP3     0x00000100
 
 typedef struct sylverant_dbconfig {
     char type[256];
