@@ -50,8 +50,8 @@ static int handle_short(xmlNode *n, sylverant_quest_t *q) {
 
     /* Grab the short description from the node */
     if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
-        strncpy(q->desc, desc, 31);
-        q->desc[31] = '\0';
+        strncpy(q->desc, desc, 111);
+        q->desc[111] = '\0';
         xmlFree(desc);
     }
 
