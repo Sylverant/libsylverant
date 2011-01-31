@@ -205,7 +205,7 @@ err:
     xmlFree(bb);
     xmlFree(ep);
     xmlFree(event);
-    xmlFree(format);
+    xmlFree(fmt);
     xmlFree(id);
     return rv;
 }
@@ -391,7 +391,10 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
 
     /* Cleanup/error handling below... */
 err_clean:
-    sylverant_quests_destroy(rv);
+    if(irv < 0) {
+        sylverant_quests_destroy(rv);
+    }
+
 err_doc:
     xmlFreeDoc(doc);
 err_cxt:
@@ -412,8 +415,8 @@ void sylverant_quests_destroy(sylverant_quest_list_t *list) {
             quest = &cat->quests[j];
 
             /* Free each malloced item in the quest. */
-            free(quest->long_desc);
-            free(quest->prefix);
+            xmlFree(quest->long_desc);
+            xmlFree(quest->prefix);
         }
 
         /* Free the list of quests. */
