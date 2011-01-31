@@ -19,359 +19,385 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <expat.h>
 #include <errno.h>
+#include <unistd.h>
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "sylverant/quest.h"
+#include "sylverant/debug.h"
 
-#define BUF_SIZE 8192
-#define DIE() XML_StopParser(parser, 0); return
+#ifndef LIBXML_TREE_ENABLED
+#error You must have libxml2 with tree support built-in.
+#endif
 
-static XML_Parser parser = NULL;
-static sylverant_quest_category_t *cat = NULL;
-static sylverant_quest_t *quest = NULL;
-static int text_type = -1;
+#define XC (const xmlChar *)
 
-static void q_start_hnd(void *d, const XML_Char *name, const XML_Char **attrs) {
-    int i;
-    sylverant_quest_list_t *l = (sylverant_quest_list_t *)d;
-    void *tmp;
+static int handle_long(xmlNode *n, sylverant_quest_t *q) {
+    xmlChar *desc;
 
-    if(!strcmp(name, "category")) {
-        /* Make sure we should expect a <category> here */
-        if(cat != NULL) {
-            DIE();
-        }
-
-        /* Allocate space for the new category */
-        tmp = realloc(l->cats, (l->cat_count + 1) *
-                      sizeof(sylverant_quest_category_t));
-
-        /* Make sure we got the space */
-        if(!tmp) {
-            DIE();
-        }
-
-        l->cats = (sylverant_quest_category_t *)tmp;
-
-        /* Grab the pointer to this category */
-        cat = l->cats + l->cat_count++;
-
-        /* Clear the category */
-        memset(cat, 0, sizeof(sylverant_quest_category_t));
-        cat->type = SYLVERANT_QUEST_NORMAL;
-
-        for(i = 0; attrs[i]; i += 2) {
-            if(!strcmp(attrs[i], "name")) {
-                strncpy(cat->name, attrs[i + 1], 31);
-                cat->name[31] = '\0';
-            }
-            else if(!strcmp(attrs[i], "type")) {
-                if(!strcmp(attrs[i + 1], "normal")) {
-                    cat->type = SYLVERANT_QUEST_NORMAL;
-                }
-                else if(!strcmp(attrs[i + 1], "battle")) {
-                    cat->type = SYLVERANT_QUEST_BATTLE;
-                }
-                else if(!strcmp(attrs[i + 1], "challenge")) {
-                    cat->type = SYLVERANT_QUEST_CHALLENGE;
-               }
-            }
-            else {
-                DIE();
-            }
-        }
+    /* Grab the long description from the node */
+    if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
+        q->long_desc = (char *)desc;
     }
-    else if(!strcmp(name, "description")) {
-        /* Make sure we're expecting a <description> here */
-        if(cat == NULL || quest != NULL) {
-            DIE();
-        }
 
-        /* Set up the text type */
-        text_type = 0;
-    }
-    else if(!strcmp(name, "quest")) {
-        /* Make sure we're expecting a <quest> here */
-        if(cat == NULL || quest != NULL) {
-            DIE();
-        }
-
-        /* Allocate space for the new quest */
-        tmp = realloc(cat->quests, (cat->quest_count + 1) *
-                      sizeof(sylverant_quest_t));
-
-        /* Make sure we got the space */
-        if(!tmp) {
-            DIE();
-        }
-
-        cat->quests = (sylverant_quest_t *)tmp;
-
-        /* Grab the pointer to this quest */
-        quest = cat->quests + cat->quest_count++;
-
-        /* Clear the quest */
-        memset(quest, 0, sizeof(sylverant_quest_t));
-
-        /* Default to episode 1 and always available */
-        quest->episode = 1;
-        quest->event = -1;
-
-        for(i = 0; attrs[i]; i += 2) {
-            if(!strcmp(attrs[i], "name")) {
-                strncpy(quest->name, attrs[i + 1], 31);
-                quest->name[31] = '\0';
-            }
-            else if(!strcmp(attrs[i], "v1")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    quest->versions |= SYLVERANT_QUEST_V1;
-                }
-            }
-            else if(!strcmp(attrs[i], "v2")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    quest->versions |= SYLVERANT_QUEST_V2;
-                }
-            }
-            else if(!strcmp(attrs[i], "gc")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    quest->versions |= SYLVERANT_QUEST_GC;
-                }
-            }
-            else if(!strcmp(attrs[i], "bb")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    quest->versions |= SYLVERANT_QUEST_BB;
-                }
-            }
-            else if(!strcmp(attrs[i], "prefix")) {
-                /* Only pay attention to the first of these we see */
-                if(quest->prefix == NULL) {
-                    quest->prefix = (char *)malloc(strlen(attrs[i + 1]) + 1);
-
-                    if(!quest->prefix) {
-                        DIE();
-                    }
-
-                    strcpy(quest->prefix, attrs[i + 1]);
-                }
-            }
-            else if(!strcmp(attrs[i], "episode")) {
-                quest->episode = atoi(attrs[i + 1]);
-            }
-            else if(!strcmp(attrs[i], "event")) {
-                quest->event = atoi(attrs[i + 1]);
-            }
-            else if(!strcmp(attrs[i], "format")) {
-                if(!strcmp(attrs[i + 1], "qst")) {
-                    quest->format = SYLVERANT_QUEST_QST;
-                }
-                else if(!strcmp(attrs[i + 1], "bin/dat")) {
-                    quest->format = SYLVERANT_QUEST_BINDAT;
-                }
-                else {
-                    DIE();
-                }
-            }
-            else if(!strcmp(attrs[i], "id")) {
-                errno = 0;
-                quest->qid = (uint32_t)strtoul(attrs[i + 1], NULL, 0);
-
-                if(errno) {
-                    DIE();
-                }
-            }
-            else {
-                DIE();
-            }
-        }
-    }
-    else if(!strcmp(name, "short")) {
-        /* Make sure we're expecting a <short> here */
-        if(cat == NULL || quest == NULL) {
-            DIE();
-        }
-
-        /* Set up the text type */
-        text_type = 1;
-    }
-    else if(!strcmp(name, "long")) {
-        /* Make sure we're expecting a <long> here */
-        if(cat == NULL || quest == NULL) {
-            DIE();
-        }
-
-        /* Set up the text type */
-        text_type = 2;
-    }
+    return 0;
 }
 
-static void q_end_hnd(void *d, const XML_Char *name) {
-    if(!strcmp(name, "quest")) {
-        quest = NULL;
+static int handle_short(xmlNode *n, sylverant_quest_t *q) {
+    xmlChar *desc;
+
+    /* Grab the short description from the node */
+    if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
+        strncpy(q->desc, desc, 31);
+        q->desc[31] = '\0';
+        xmlFree(desc);
     }
-    else if(!strcmp(name, "category")) {
-        cat = NULL;
-    }
-    else if(!strcmp(name, "description") || !strcmp(name, "short") ||
-            !strcmp(name, "long")) {
-        text_type = -1;
-    }
+
+    return 0;
 }
 
-static void q_text_hnd(void *d, const XML_Char *s, int len) {
-    int slen, cplen;
+static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
+    xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id;
+    int rv = 0, format;
     void *tmp;
+    unsigned long episode, id_num;
+    long event_num;
+    sylverant_quest_t *q;
 
-    /* Ignore text if its not in a <description> <short> or <long> */
-    if(text_type == -1) {
-        return;
+    /* Grab the attributes we're expecting */
+    name = xmlGetProp(n, XC"name");
+    prefix = xmlGetProp(n, XC"prefix");
+    v1 = xmlGetProp(n, XC"v1");
+    v2 = xmlGetProp(n, XC"v2");
+    gc = xmlGetProp(n, XC"gc");
+    bb = xmlGetProp(n, XC"bb");
+    ep = xmlGetProp(n, XC"episode");
+    event = xmlGetProp(n, XC"event");
+    fmt = xmlGetProp(n, XC"format");
+    id = xmlGetProp(n, XC"id");
+
+    /* Make sure we have all of them... */
+    if(!name || !prefix || !v1 || !v2 || !gc || !bb || !ep || !event || !fmt ||
+       !id) {
+        debug(DBG_ERROR, "One or more required quest attributes missing\n");
+        rv = -1;
+        goto err;
     }
 
-    /* Check what kind of tag we have */
-    if(text_type == 0) {
-        /* We have a <description> tag */
-        slen = strlen(cat->desc);
-        cplen = 111 - slen;
+    /* Make sure the episode is sane */
+    episode = strtoul(ep, NULL, 0);
 
-        if(len < cplen) {
-            cplen = len;
-        }
-
-        if(cplen) {
-            memcpy(cat->desc + slen, s, cplen);
-        }
+    if(episode < 1 || episode > 4) {
+        debug(DBG_ERROR, "Invalid episode given: %s\n", ep);
+        rv = -2;
+        goto err;
     }
-    else if(text_type == 1) {
-        /* We have a <short> tag */
-        slen = strlen(quest->desc);
-        cplen = 111 - slen;
 
-        if(len < cplen) {
-            cplen = len;
-        }
-
-        if(cplen) {
-            memcpy(quest->desc + slen, s, cplen);
-        }
+    /* Make sure the format is sane */
+    if(!xmlStrcmp(fmt, XC"qst")) {
+        format = SYLVERANT_QUEST_QST;
     }
-    else if(text_type == 2) {
-        /* We have a <long> tag */
-        if(quest->long_desc) {
-            slen = strlen(quest->long_desc);
-            tmp = realloc(quest->long_desc, slen + len + 1);
+    else if(!xmlStrcmp(fmt, XC"bindat")) {
+        format = SYLVERANT_QUEST_BINDAT;
+    }
+    else {
+        debug(DBG_ERROR, "Invalid format given for quest: %s\n", fmt);
+        rv = -3;
+        goto err;
+    }
+
+    /* Make sure the event is sane */
+    errno = 0;
+    event_num = strtol(event, NULL, 0);
+
+    if(errno || event_num < -1 || event_num > 14) {
+        debug(DBG_ERROR, "Invalid event given for quest: %s\n", event);
+        rv = -4;
+        goto err;
+    }
+
+    /* Make sure the id is sane */
+    errno = 0;
+    id_num = strtoul(id, NULL, 0);
+
+    if(errno) {
+        debug(DBG_ERROR, "Invalid ID given for quest: %s\n", id);
+        rv = -5;
+        goto err;
+    }
+
+    /* Allocate space for the quest */
+    tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
+
+    if(!tmp) {
+        debug(DBG_ERROR, "Couldn't allocate space for quest\n");
+        perror("realloc");
+        rv = -6;
+        goto err;
+    }
+
+    c->quests = (sylverant_quest_t *)tmp;
+    q = c->quests + c->quest_count++;
+
+    /* Clear the quest out */
+    memset(q, 0, sizeof(sylverant_quest_t));
+
+    /* Copy over what we have so far */
+    q->qid = (uint32_t)id_num;
+    q->episode = (int)episode;
+    q->event = (int)event_num;
+    q->format = (int)format;
+
+    strncpy(q->name, name, 31);
+    q->name[31] = '\0';
+    q->prefix = prefix;
+
+    /* Fill in the versions */
+    if(!xmlStrcmp(v1, XC"true")) {
+        q->versions |= SYLVERANT_QUEST_V1;
+    }
+    if(!xmlStrcmp(v2, XC"true")) {
+        q->versions |= SYLVERANT_QUEST_V2;
+    }
+    if(!xmlStrcmp(gc, XC"true")) {
+        q->versions |= SYLVERANT_QUEST_GC;
+    }
+    if(!xmlStrcmp(bb, XC"true")) {
+        q->versions |= SYLVERANT_QUEST_BB;
+    }
+
+    /* Now that we're done with that, deal with any children of the node */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"long")) {
+            if(handle_long(n, q)) {
+                rv = -7;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"short")) {
+            if(handle_short(n, q)) {
+                rv = -8;
+                goto err;
+            }
         }
         else {
-            slen = 0;
-            tmp = malloc(len + 1);
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
         }
 
-        /* Make sure we got the memory */
-        if(!tmp) {
-            DIE();
-        }
-
-        /* Save the pointer where it belongs */
-        quest->long_desc = (char *)tmp;
-
-        /* Copy the new string in */
-        memcpy(quest->long_desc + slen, s, len);
-
-        /* NUL terminate it. */
-        quest->long_desc[slen + len] = 0;
+        n = n->next;
     }
+
+err:
+    xmlFree(name);
+    xmlFree(prefix);
+    xmlFree(v1);
+    xmlFree(v2);
+    xmlFree(gc);
+    xmlFree(bb);
+    xmlFree(ep);
+    xmlFree(event);
+    xmlFree(format);
+    xmlFree(id);
+    return rv;
+}
+
+static int handle_description(xmlNode *n, sylverant_quest_category_t *c) {
+    xmlChar *desc;
+
+    /* Grab the description from the node */
+    if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
+        strncpy(c->desc, desc, 111);
+        c->desc[111] = '\0';
+        xmlFree(desc);
+    }
+
+    return 0;
+}
+
+static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
+    xmlChar *name, *type;
+    int rv = 0;
+    uint32_t type_num;
+    void *tmp;
+    sylverant_quest_category_t *cat;
+
+    /* Grab the attributes we're expecting */
+    name = xmlGetProp(n, XC"name");
+    type = xmlGetProp(n, XC"type");
+
+    /* Make sure we have both of them... */
+    if(!name || !type) {
+        debug(DBG_ERROR, "Name or type not given for category\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Make sure the type is sane */
+    if(!xmlStrcmp(type, XC"normal")) {
+        type_num = SYLVERANT_QUEST_NORMAL;
+    }
+    else if(!xmlStrcmp(type, XC"battle")) {
+        type_num = SYLVERANT_QUEST_BATTLE;
+    }
+    else if(!xmlStrcmp(type, XC"challenge")) {
+        type_num = SYLVERANT_QUEST_CHALLENGE;
+    }
+    else {
+        debug(DBG_ERROR, "Invalid category type: %s\n", (char *)type);
+        rv = -2;
+        goto err;
+    }
+
+    /* Allocate space for the category */
+    tmp = realloc(l->cats, (l->cat_count + 1) *
+                  sizeof(sylverant_quest_category_t));
+
+    if(!tmp) {
+        debug(DBG_ERROR, "Couldn't allocate space for category\n");
+        perror("realloc");
+        rv = -3;
+        goto err;
+    }
+
+    l->cats = (sylverant_quest_category_t *)tmp;
+    cat = l->cats + l->cat_count++;
+
+    /* Clear the category out */
+    memset(cat, 0, sizeof(sylverant_quest_category_t));
+
+    /* Copy over what we have so far */
+    cat->type = type_num;
+    strncpy(cat->name, name, 31);
+    cat->name[31] = '\0';
+
+    /* Now that we're done with that, deal with any children of the node */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"description")) {
+            if(handle_description(n, cat)) {
+                rv = -4;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"quest")) {
+            if(handle_quest(n, cat)) {
+                rv = -5;
+                goto err;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+        }
+
+        n = n->next;
+    }
+
+err:
+    xmlFree(name);
+    xmlFree(type);
+    return rv;
 }
 
 int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
-    FILE *fp;
-    XML_Parser p;
-    int bytes;
-    void *buf;
+    xmlParserCtxtPtr cxt;
+    xmlDoc *doc;
+    xmlNode *n;
+    int irv = 0;
+
+    /* Make sure the file exists and can be read, otherwise quietly bail out */
+    if(access(filename, R_OK)) {
+        return -1;
+    }
 
     /* Clear out the config. */
     memset(rv, 0, sizeof(sylverant_quest_list_t));
 
+    /* Create an XML Parsing context */
+    cxt = xmlNewParserCtxt();
+    if(!cxt) {
+        debug(DBG_ERROR, "Couldn't create parsing context for config\n");
+        irv = -2;
+        goto err;
+    }
+
     /* Open the configuration file for reading. */
-    fp = fopen(filename, "r");
+    doc = xmlReadFile(filename, NULL, XML_PARSE_DTDVALID);
 
-    if(!fp) {
-        return -1;
+    if(!doc) {
+        xmlParserError(cxt, "Error in parsing config");
+        irv = -3;
+        goto err_cxt;
     }
 
-    /* Create the XML parser object. */
-    p = XML_ParserCreate(NULL);
-
-    if(!p)  {
-        fclose(fp);
-        return -2;
+    /* Make sure the document validated properly. */
+    if(!cxt->valid) {
+        xmlParserValidityError(cxt, "Validity Error parsing config");
+        irv = -4;
+        goto err_doc;
     }
 
-    /* Set the callbacks that expat needs */
-    XML_SetElementHandler(p, &q_start_hnd, &q_end_hnd);
-    XML_SetCharacterDataHandler(p, &q_text_hnd);
+    /* If we've gotten this far, we have a valid document, go through and read
+       everything contained within... */
+    n = xmlDocGetRootElement(doc);
 
-    /* Set up the user data so we can store the configuration. */
-    XML_SetUserData(p, rv);
-
-    parser = p;
-
-    for(;;) {
-        /* Grab the buffer to read into. */
-        buf = XML_GetBuffer(p, BUF_SIZE);
-
-        if(!buf)    {
-            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
-            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
-                   (int)XML_GetCurrentColumnNumber(p));
-            XML_ParserFree(p);
-            fclose(fp);
-            parser = NULL;
-            cat = NULL;
-            quest = NULL;
-            text_type = -1;
-            return -2;
-        }
-
-        /* Read in from the file. */
-        bytes = fread(buf, 1, BUF_SIZE, fp);
-
-        if(bytes < 0)   {
-            XML_ParserFree(p);
-            fclose(fp);
-            parser = NULL;
-            cat = NULL;
-            quest = NULL;
-            text_type = -1;
-            return -2;
-        }
-
-        /* Parse the bit we read in. */
-        if(!XML_ParseBuffer(p, bytes, !bytes))  {
-            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
-            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
-                   (int)XML_GetCurrentColumnNumber(p));
-            XML_ParserFree(p);
-            fclose(fp);
-            parser = NULL;
-            cat = NULL;
-            quest = NULL;
-            text_type = -1;
-            return -3;
-        }
-
-        if(!bytes)  {
-            break;
-        }
+    if(!n) {
+        debug(DBG_WARN, "Empty config document\n");
+        irv = -5;
+        goto err_doc;
     }
 
-    XML_ParserFree(p);
-    fclose(fp);
+    /* Make sure the config looks sane. */
+    if(xmlStrcmp(n->name, XC"quests")) {
+        debug(DBG_WARN, "Quest List does not appear to be the right type\n");
+        irv = -6;
+        goto err_doc;
+    }
 
-    parser = NULL;
-    cat = NULL;
-    quest = NULL;
-    text_type = -1;
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"category")) {
+            if(handle_category(n, rv)) {
+                irv = -7;
+                goto err_clean;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+        }
 
-    return 0;
+        n = n->next;
+    }
+
+    /* Cleanup/error handling below... */
+err_clean:
+    sylverant_quests_destroy(rv);
+err_doc:
+    xmlFreeDoc(doc);
+err_cxt:
+    xmlFreeParserCtxt(cxt);
+err:
+    return irv;
 }
 
 void sylverant_quests_destroy(sylverant_quest_list_t *list) {
