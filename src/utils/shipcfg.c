@@ -491,8 +491,8 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
     cxt = xmlNewParserCtxt();
     if(!cxt) {
         debug(DBG_ERROR, "Couldn't create parsing context for ship config\n");
+        irv = -2;
         goto err;
-        return -2;
     }
 
     /* Open the configuration file for reading. */
