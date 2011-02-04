@@ -49,8 +49,6 @@ PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.7])
 CFLAGS="$CFLAGS $libxml2_CFLAGS"
 LIBS="$LIBS $libxml2_LIBS"
 
-AC_CHECK_LIB(expat, XML_ParserCreate, , AC_MSG_ERROR([libexpat is required!]))
-
 AC_ARG_WITH([mysql],
             [AS_HELP_STRING([--without-mysql], [disable mysql support])], [],
             [with_mysql=yes])
