@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010 Lawrence Sebald
+    Copyright (C) 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -19,19 +19,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <expat.h>
 #include <errno.h>
 #include <limits.h>
+#include <unistd.h>
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "sylverant/items.h"
+#include "sylverant/debug.h"
 
-#define BUF_SIZE 8192
-#define DIE() XML_StopParser(parser, 0); return
+#ifndef LIBXML_TREE_ENABLED
+#error You must have libxml2 with tree support built-in.
+#endif
 
-static XML_Parser parser = NULL;
-static int in_items = 0, swap_code = 0;
-static sylverant_item_t *cur_item = NULL;
-static void (*cur_hnd)(const XML_Char *name, const XML_Char **attrs);
+#define XC (const xmlChar *)
 
 /* Lazy, lazy, lazy */
 typedef int8_t s8;
@@ -99,246 +101,40 @@ static const char *mag_colors[NUM_COLORS] = {
     "brown", "black", "c10", "c11", "c12", "c13", "c14", "c15"
 };
 
-static void handle_items(sylverant_limits_t *l, const XML_Char **attrs) {
-    int i;
-
-    if(in_items) {
-        /* Not allowed to have <items> inside of <items>. */
-        DIE();
-    }
-
-    in_items = 1;
-
-    for(i = 0; attrs[i]; i += 2) {
-        if(!strcmp(attrs[i], "byteorder")) {
-            if(!strcmp(attrs[i + 1], "little")) {
-                swap_code = 0;
-            }
-            else if(!strcmp(attrs[i + 1], "big")) {
-                swap_code = 1;
-            }
-            else {
-                /* Invalid option, bail. */
-                DIE();
-            }
-        }
-        else if(!strcmp(attrs[i], "default")) {
-            if(!strcmp(attrs[i + 1], "allow")) {
-                l->default_behavior = ITEM_DEFAULT_ALLOW;
-            }
-            else if(!strcmp(attrs[i + 1], "reject")) {
-                l->default_behavior = ITEM_DEFAULT_REJECT;
-            }
-            else {
-                /* Invalid option, bail. */
-                DIE();
-            }
-        }
-        else if(!strcmp(attrs[i], "check_sranks")) {
-            if(!strcmp(attrs[i + 1], "true")) {
-                l->check_srank_names = 1;
-            }
-            else if(!strcmp(attrs[i + 1], "false")) {
-                l->check_srank_names = 0;
-            }
-            else {
-                /* Invalid option, bail. */
-                DIE();
-            }
-        }
-        else if(!strcmp(attrs[i], "check_pbs")) {
-            if(!strcmp(attrs[i + 1], "true")) {
-                l->check_pbs = 1;
-            }
-            else if(!strcmp(attrs[i + 1], "false")) {
-                l->check_pbs = 0;
-            }
-            else {
-                /* Invalid option, bail. */
-                DIE();
-            }
-        }
-        else {
-            /* Unknown attribute, bail. */
-            DIE();
-        }
-    }
-}
-
-static int common_tag(const XML_Char *name, const XML_Char **attrs) {
-    int i;
-
-    if(!strcmp(name, "versions")) {
-        cur_item->versions = 0;
-
-        for(i = 0; attrs[i]; i += 2) {
-            if(!strcmp(attrs[i], "v1")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->versions |= ITEM_VERSION_V1;
-                }
-                else if(strcmp(attrs[i + 1], "false")) {
-                    /* If its not true, and not false, bail */
-                    DIE();
-                }
-            }
-            else if(!strcmp(attrs[i], "v2")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->versions |= ITEM_VERSION_V2;
-                }
-                else if(strcmp(attrs[i + 1], "false")) {
-                    /* If its not true, and not false, bail */
-                    DIE();
-                }
-            }
-            else if(!strcmp(attrs[i], "gc")) {
-                if(!strcmp(attrs[i + 1], "true")) {
-                    cur_item->versions |= ITEM_VERSION_GC;
-                }
-                else if(strcmp(attrs[i + 1], "false")) {
-                    /* If its not true, and not false, bail */
-                    DIE();
-                }
-            }
-            else {
-                DIE();
-            }
-        }
-    }
-    else if(!strcmp(name, "auto_reject")) {
-        /* No attributes on the <auto_reject> tag. */
-        if(attrs && attrs[0]) {
-            DIE();
-        }
-
-        cur_item->auto_reject = 1;
-    }
-    else {
-        return 0;
-    }
-
-    return 1;
-}
-
-static void parse_max(const XML_Char **attrs, int *max, int *min) {
-    int first = 0;
-
-    /* Make sure the tag looks sane */
-    if(!attrs || !attrs[0] || !attrs[1] || (attrs[2] && !attrs[3])) {
-        DIE();
-    }
-
-    /* Grab the first of the two possible attributes */
-    errno = 0;
-
-    if(!strcmp(attrs[0], "max")) {
-        *max = (int)strtol(attrs[1], NULL, 0);
-    }
-    else if(!strcmp(attrs[0], "min")) {
-        *min = (int)strtol(attrs[1], NULL, 0);
-        first = 1;
-    }
-    else {
-        DIE();
-    }
-
-    /* If we have a second attribute, grab it */
-    if(attrs[2]) {
-        if(!strcmp(attrs[2], "max") && first) {
-            *max = (int)strtol(attrs[3], NULL, 0);
-        }
-        else if(!strcmp(attrs[2], "min") && !first) {
-            *min = (int)strtol(attrs[3], NULL, 0);
-        }
-        else {
-            DIE();
-        }
-    }
-
-    /* If there was an error parsing the numbers out, die */
-    if(errno) {
-        DIE();
-    }
-}
-
-static void parse_attrs(const XML_Char **attrs, uint64_t *valid) {
-    int i;
-    char *str, *lasts, *tok;
-
-    /* Make sure we have a sane set */
-    if(!attrs || !attrs[0] || !attrs[1] || attrs[2]) {
-        DIE();
-    }
-
-    /* The only valid attribute here is disallow */
-    if(strcmp("disallow", attrs[0])) {
-        DIE();
-    }
-
-    /* Create a temporary copy of the string for parsing */
-    str = strdup(attrs[1]);
-    tok = strtok_r(str, ", ", &lasts);
-
-    /* Go through any attributes in the disallow list */
-    while(tok) {
-        /* Look through the list of weapon attributes for what we have */
-        for(i = 0; i <= Weapon_Attr_MAX; ++i) {
-            if(!strcmp(weapon_attrs[i], tok)) {
-                *valid &= ~(1 << i);
-                break;
-            }
-        }
-
-        /* If we didn't find the attribute, die */
-        if(i > Weapon_Attr_MAX) {
-            free(str);
-            DIE();
-        }
-
-        /* Grab the next token, and check for it */
-        tok = strtok_r(NULL, ", ", &lasts);
-    }
-
-    /* Clean up the temporary string, since we're done */
-    free(str);
-}
-
-static void parse_pbs(const XML_Char **attrs, uint8_t *c, uint8_t *r,
-                      uint8_t *l) {
-    int i;
-    char *str, *lasts, *tok;
+static int handle_pbs(xmlNode *n, uint8_t *c, uint8_t *r, uint8_t *l) {
+    xmlChar *pos, *pbs;
+    char *lasts, *tok;
+    int i, rv = 0;
     uint8_t *valid;
 
-    /* Make sure we have a sane set */
-    if(!attrs || !attrs[0] || !attrs[1] || !attrs[2] || !attrs[3] || attrs[4]) {
-        DIE();
+    /* Grab the attributes */
+    pos = xmlGetProp(n, XC"pos");
+    pbs = xmlGetProp(n, XC"pbs");
+
+    if(!pos || !pbs) {
+        debug(DBG_ERROR, "pbs tag without required attributes\n");
+        rv = -1;
+        goto err;
     }
 
-    /* The first attribute must be the place we're setting */
-    if(strcmp("pos", attrs[0])) {
-        DIE();
-    }
-
-    if(!strcmp("center", attrs[1])) {
+    /* Figure out what list to look at */
+    if(!xmlStrcmp(pos, "center")) {
         valid = c;
     }
-    else if(!strcmp("right", attrs[1])) {
+    else if(!xmlStrcmp(pos, "right")) {
         valid = r;
     }
-    else if(!strcmp("left", attrs[1])) {
+    else if(!xmlStrcmp(pos, "left")) {
         valid = l;
     }
     else {
-        DIE();
+        debug(DBG_ERROR, "Invalid position for pbs tag: %s\n", pos);
+        rv = -2;
+        goto err;
     }
 
-    /* The second attribute must be disallow */
-    if(strcmp("disallow", attrs[2])) {
-        DIE();
-    }
-
-    /* Create a temporary copy of the string for parsing */
-    str = strdup(attrs[3]);
-    tok = strtok_r(str, ", ", &lasts);
+    /* Tokenize the pbs string */
+    tok = strtok_r((char *)pbs, ", ", &lasts);
 
     *valid = 0xFF;
 
@@ -354,35 +150,36 @@ static void parse_pbs(const XML_Char **attrs, uint8_t *c, uint8_t *r,
 
         /* If we didn't find the PB, die */
         if(i == NUM_PBS) {
-            free(str);
-            DIE();
+            debug(DBG_ERROR, "Invalid pb: %s\n", tok);
+            rv = -3;
+            goto err;
         }
 
         /* Grab the next token, and check for it */
         tok = strtok_r(NULL, ", ", &lasts);
     }
 
-    /* Clean up the temporary string, since we're done */
-    free(str);
+err:
+    xmlFree(pos);
+    xmlFree(pbs);
+    return rv;
 }
 
-static void parse_colors(const XML_Char **attrs, uint16_t *valid) {
+static int handle_colors(xmlNode *n, uint16_t *valid) {
+    xmlChar *colors;
+    char *lasts, *tok;
     int i;
-    char *str, *lasts, *tok;
 
-    /* Make sure we have a sane set */
-    if(!attrs || !attrs[0] || !attrs[1] || attrs[2]) {
-        DIE();
+    /* Attempt to grab the color list */
+    colors = xmlGetProp(n, XC"disallow");
+
+    if(!colors) {
+        debug(DBG_ERROR, "colors tag with no disallow list\n");
+        return -1;
     }
 
-    /* The only valid attribute here is disallow */
-    if(strcmp("disallow", attrs[0])) {
-        DIE();
-    }
-
-    /* Create a temporary copy of the string for parsing */
-    str = strdup(attrs[1]);
-    tok = strtok_r(str, ", ", &lasts);
+    /* Tokenize the string... */
+    tok = strtok_r((char *)colors, ", ", &lasts);
 
     *valid = 0xFFFF;
 
@@ -398,149 +195,436 @@ static void parse_colors(const XML_Char **attrs, uint16_t *valid) {
 
         /* If we didn't find the color, die */
         if(i == NUM_COLORS) {
-            free(str);
-            DIE();
+            debug(DBG_ERROR, "Invalid color: %s\n", tok);
+            xmlFree(colors);
+            return -1;
         }
 
         /* Grab the next token, and check for it */
         tok = strtok_r(NULL, ", ", &lasts);
     }
 
-    /* Clean up the temporary string, since we're done */
-    free(str);
+    /* Clean up the string, since we're done */
+    xmlFree(colors);
+
+    return 0;
 }
 
-static void handle_weapon(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_weapon_t *w = (sylverant_weapon_t *)cur_item;
-
-    if(!strcmp(name, "grind")) {
-        parse_max(attrs, &w->max_grind, &w->min_grind);
-    }
-    else if(!strcmp(name, "percents")) {
-        parse_max(attrs, &w->max_percents, &w->min_percents);
-    }
-    else if(!strcmp(name, "attributes")) {
-        parse_attrs(attrs, &w->valid_attrs);
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_frame(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_frame_t *f = (sylverant_frame_t *)cur_item;
-
-    if(!strcmp(name, "slots")) {
-        parse_max(attrs, &f->max_slots, &f->min_slots);
-    }
-    else if(!strcmp(name, "dfp")) {
-        parse_max(attrs, &f->max_dfp, &f->min_dfp);
-    }
-    else if(!strcmp(name, "evp")) {
-        parse_max(attrs, &f->max_evp, &f->min_evp);
-    }
-    else if(!strcmp(name, "reject_max")) {
-        f->reject_max = 1;
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_barrier(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_barrier_t *b = (sylverant_barrier_t *)cur_item;
-
-    if(!strcmp(name, "dfp")) {
-        parse_max(attrs, &b->max_dfp, &b->min_dfp);
-    }
-    else if(!strcmp(name, "evp")) {
-        parse_max(attrs, &b->max_evp, &b->min_evp);
-    }
-    else if(!strcmp(name, "reject_max")) {
-        b->reject_max = 1;
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_unit(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_unit_t *u = (sylverant_unit_t *)cur_item;
-
-    if(!strcmp(name, "plus")) {
-        parse_max(attrs, &u->max_plus, &u->min_plus);
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_mag(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_mag_t *m = (sylverant_mag_t *)cur_item;
-
-    if(!strcmp(name, "level")) {
-        parse_max(attrs, &m->max_level, &m->min_level);
-    }
-    else if(!strcmp(name, "def")) {
-        parse_max(attrs, &m->max_def, &m->min_def);
-    }
-    else if(!strcmp(name, "pow")) {
-        parse_max(attrs, &m->max_pow, &m->min_pow);
-    }
-    else if(!strcmp(name, "dex")) {
-        parse_max(attrs, &m->max_dex, &m->min_dex);
-    }
-    else if(!strcmp(name, "mind")) {
-        parse_max(attrs, &m->max_mind, &m->min_mind);
-    }
-    else if(!strcmp(name, "synchro")) {
-        parse_max(attrs, &m->max_synchro, &m->min_synchro);
-    }
-    else if(!strcmp(name, "iq")) {
-        parse_max(attrs, &m->max_iq, &m->min_iq);
-    }
-    else if(!strcmp(name, "pbs")) {
-        parse_pbs(attrs, &m->allowed_cpb, &m->allowed_rpb, &m->allowed_lpb);
-    }
-    else if(!strcmp(name, "colors")) {
-        parse_colors(attrs, &m->allowed_colors);
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_tool(const XML_Char *name, const XML_Char **attrs) {
-    sylverant_tool_t *t = (sylverant_tool_t *)cur_item;
-
-    if(!strcmp(name, "stack")) {
-        parse_max(attrs, &t->max_stack, &t->min_stack);
-    }
-    else if(!common_tag(name, attrs)) {
-        DIE();
-    }
-}
-
-static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
+static int handle_attributes(xmlNode *n, uint64_t *valid) {
+    xmlChar *attr;
+    char *lasts, *tok;
     int i;
+
+    /* Attempt to grab the attribute list */
+    attr = xmlGetProp(n, XC"disallow");
+
+    if(!attr) {
+        debug(DBG_ERROR, "attributes tag with no disallow list\n");
+        return -1;
+    }
+
+    /* Tokenize the string... */
+    tok = strtok_r((char *)attr, ", ", &lasts);
+
+    /* Go through any attributes in the disallow list */
+    while(tok) {
+        /* Look through the list of attributes for what we have */
+        for(i = 0; i <= Weapon_Attr_MAX; ++i) {
+            if(!strcmp(weapon_attrs[i], tok)) {
+                *valid &= ~(1 << i);
+                break;
+            }
+        }
+
+        /* If we didn't find the attribute, die */
+        if(i > Weapon_Attr_MAX) {
+            debug(DBG_ERROR, "Invalid attribute: %s\n", tok);
+            xmlFree(attr);
+            return -1;
+        }
+
+        /* Grab the next token, and check for it */
+        tok = strtok_r(NULL, ", ", &lasts);
+    }
+
+    /* Clean up the string, since we're done */
+    xmlFree(attr);
+    
+    return 0;
+}
+
+static int handle_common_tag(xmlNode *n, sylverant_item_t *i) {
+    int rv = 1;
+
+    if(!xmlStrcmp(n->name, XC"auto_reject")) {
+        i->auto_reject = 1;
+    }
+    else if(!xmlStrcmp(n->name, XC"reject_max")) {
+        i->reject_max = 1;
+    }
+    else if(!xmlStrcmp(n->name, XC"versions")) {
+        xmlChar *v1, *v2, *gc;
+
+        v1 = xmlGetProp(n, XC"v1");
+        v2 = xmlGetProp(n, XC"v2");
+        gc = xmlGetProp(n, XC"gc");
+
+        if(!v1 || !v2 || !gc) {
+            debug(DBG_ERROR, "Required attribute of versions not found\n");
+            rv = 0;
+            goto done_vers;
+        }
+
+        /* Check each value */
+        if(!xmlStrcmp(v1, XC"true")) {
+            i->versions |= ITEM_VERSION_V1;
+        }
+        else if(xmlStrcmp(v1, XC"false")) {
+            debug(DBG_ERROR, "Invalid value for attribute v1: %s\n",
+                  (char *)v1);
+            rv = 0;
+            goto done_vers;
+        }
+
+        if(!xmlStrcmp(v2, XC"true")) {
+            i->versions |= ITEM_VERSION_V2;
+        }
+        else if(xmlStrcmp(v2, XC"false")) {
+            debug(DBG_ERROR, "Invalid value for attribute v2: %s\n",
+                  (char *)v2);
+            rv = 0;
+            goto done_vers;
+        }
+
+        if(!xmlStrcmp(gc, XC"true")) {
+            i->versions |= ITEM_VERSION_GC;
+        }
+        else if(xmlStrcmp(gc, XC"false")) {
+            debug(DBG_ERROR, "Invalid value for attribute gc: %s\n",
+                  (char *)gc);
+            rv = 0;
+            goto done_vers;
+        }
+
+done_vers:
+        xmlFree(v1);
+        xmlFree(v2);
+        xmlFree(gc);
+    }
+    else {
+        rv = 0;
+    }
+
+    return rv;
+}
+
+static int handle_max(xmlNode *n, int *max, int *min) {
+    xmlChar *val;
+    int rv = 0;
+
+    /* Grab the attributes */
+    if((val = xmlGetProp(n, XC"max"))) {
+        errno = 0;
+        *max = (int)strtol((char *)val, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid value for max: %s\n", (char *)max);
+            rv = -1;
+        }
+
+        xmlFree(val);
+    }
+
+    if((val = xmlGetProp(n, XC"min"))) {
+        errno = 0;
+        *min = (int)strtol((char *)val, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid value for min: %s\n", (char *)min);
+            rv = -1;
+        }
+
+        xmlFree(val);
+    }
+
+    return rv;
+}
+
+static int handle_weapon(xmlNode *n, sylverant_weapon_t *w) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"grind")) {
+            if(handle_max(n, &w->max_grind, &w->min_grind)) {
+                return -1;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"percents")) {
+            if(handle_max(n, &w->max_percents, &w->min_percents)) {
+                return -2;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"attributes")) {
+            if(handle_attributes(n, &w->valid_attrs)) {
+                return -3;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)w)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -4;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_frame(xmlNode *n, sylverant_frame_t *f) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"slots")) {
+            if(handle_max(n, &f->max_slots, &f->min_slots)) {
+                return -1;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"dfp")) {
+            if(handle_max(n, &f->max_dfp, &f->min_dfp)) {
+                return -2;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"evp")) {
+            if(handle_max(n, &f->max_evp, &f->min_evp)) {
+                return -3;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)f)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -4;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_barrier(xmlNode *n, sylverant_barrier_t *b) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"dfp")) {
+            if(handle_max(n, &b->max_dfp, &b->min_dfp)) {
+                return -1;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"evp")) {
+            if(handle_max(n, &b->max_evp, &b->min_evp)) {
+                return -2;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)b)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -3;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_unit(xmlNode *n, sylverant_unit_t *u) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"plus")) {
+            if(handle_max(n, &u->max_plus, &u->min_plus)) {
+                return -1;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)u)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -2;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_mag(xmlNode *n, sylverant_mag_t *m) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"level")) {
+            if(handle_max(n, &m->max_level, &m->min_level)) {
+                return -1;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"def")) {
+            if(handle_max(n, &m->max_def, &m->min_def)) {
+                return -2;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"pow")) {
+            if(handle_max(n, &m->max_pow, &m->min_pow)) {
+                return -3;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"dex")) {
+            if(handle_max(n, &m->max_dex, &m->min_dex)) {
+                return -4;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"mind")) {
+            if(handle_max(n, &m->max_mind, &m->min_mind)) {
+                return -5;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"synchro")) {
+            if(handle_max(n, &m->max_synchro, &m->min_synchro)) {
+                return -6;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"iq")) {
+            if(handle_max(n, &m->max_iq, &m->min_iq)) {
+                return -7;
+            }
+        }
+        else if(!xmlStrcmp(n->name, "pbs")) {
+            if(handle_pbs(n, &m->allowed_cpb, &m->allowed_rpb,
+                          &m->allowed_lpb)) {
+                return -8;
+            }
+        }
+        else if(!xmlStrcmp(n->name, "colors")) {
+            if(handle_colors(n, &m->allowed_colors)) {
+                return -9;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)m)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -10;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_tool(xmlNode *n, sylverant_tool_t *t) {
+    int rv = 0;
+
+    /* Look at the node's children... */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"stack")) {
+            if(handle_max(n, &t->max_stack, &t->min_stack)) {
+                return -1;
+            }
+        }
+        else if(handle_common_tag(n, (sylverant_item_t *)t)) {
+            n = n->next;
+            continue;
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+            return -2;
+        }
+
+        n = n->next;
+    }
+}
+
+static int handle_item(xmlNode *n, sylverant_limits_t *l, int swap) {
+    xmlChar *code_str;
     uint32_t code;
+    sylverant_item_t *cur_item;
 
-    /* The only attribute on <item> is the code one. */
-    if(!attrs || !attrs[0] || !attrs[1] || strcmp(attrs[0], "code")) {
-        DIE();
+    /* Attempt to grab the item code */
+    code_str = xmlGetProp(n, XC"code");
+
+    if(!code_str) {
+        debug(DBG_ERROR, "item tag with no item code\n");
+        return -1;
     }
 
-    /* Grab the hex code. */
+    /* Attempt to parse out the code from the string */
     errno = 0;
-    code = (uint32_t)strtoul(attrs[1], NULL, 16);
+    code = (uint32_t)strtoul((char *)code_str, NULL, 16);
     if(errno) {
-        DIE();
+        debug(DBG_ERROR, "Invalid item code: %s\n", (char *)code_str);
+        xmlFree(code_str);
+        return -2;
     }
 
-   if(swap_code) {
-       code = ((code >> 24) & 0xFF) | ((code >> 8) & 0xFF00) |
-           ((code & 0xFF00) << 8) | ((code & 0xFF) << 24);
-   }
+    if(swap) {
+        code = ((code >> 24) & 0xFF) | ((code >> 8) & 0xFF00) |
+            ((code & 0xFF00) << 8) | ((code & 0xFF) << 24);
+    }
+
+    /* we're done with this now... */
+    xmlFree(code_str);
 
     /* Now that we have the item code, we can figure out what type of item we
        actually are allocating. */
@@ -551,16 +635,25 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
 
             w = (sylverant_weapon_t *)malloc(sizeof(sylverant_weapon_t));
             if(!w) {
-                DIE();
+                debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                perror("malloc");
+                return -3;
             }
 
             memset(w, 0xFF, sizeof(sylverant_weapon_t));
 
             cur_item = (sylverant_item_t *)w;
-            cur_hnd = &handle_weapon;
             w->base.item_code = code;
+            w->base.auto_reject = 0;
+            w->base.reject_max = 0;
+            w->base.versions = 0;
             w->valid_attrs = FULL_ATTR_VALID;
             TAILQ_INSERT_TAIL(l->weapons, cur_item, qentry);
+
+            if(handle_weapon(n, w)) {
+                return -4;
+            }
+
             break;
         }
 
@@ -572,15 +665,23 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
 
                     f = (sylverant_frame_t *)malloc(sizeof(sylverant_frame_t));
                     if(!f) {
-                        DIE();
+                        debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                        perror("malloc");
+                        return -5;
                     }
 
                     memset(f, 0xFF, sizeof(sylverant_frame_t));
 
                     cur_item = (sylverant_item_t *)f;
-                    cur_hnd = &handle_frame;
                     f->base.item_code = code;
-                    f->reject_max = 0;
+                    f->base.auto_reject = 0;
+                    f->base.reject_max = 0;
+                    f->base.versions = 0;
+
+                    if(handle_frame(n, f)) {
+                        return -6;
+                    }
+
                     break;
                 }
 
@@ -589,17 +690,25 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
                     sylverant_barrier_t *b;
 
                     b = (sylverant_barrier_t *)
-                        malloc(sizeof(sylverant_barrier_t));
+                    malloc(sizeof(sylverant_barrier_t));
                     if(!b) {
-                        DIE();
+                        debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                        perror("malloc");
+                        return -7;
                     }
 
                     memset(b, 0xFF, sizeof(sylverant_barrier_t));
 
                     cur_item = (sylverant_item_t *)b;
-                    cur_hnd = &handle_barrier;
                     b->base.item_code = code;
-                    b->reject_max = 0;
+                    b->base.auto_reject = 0;
+                    b->base.reject_max = 0;
+                    b->base.versions = 0;
+
+                    if(handle_barrier(n, b)) {
+                        return -8;
+                    }
+
                     break;
                 }
 
@@ -609,25 +718,36 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
 
                     u = (sylverant_unit_t *)malloc(sizeof(sylverant_unit_t));
                     if(!u) {
-                        DIE();
+                        debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                        perror("malloc");
+                        return -9;
                     }
 
                     memset(u, 0xFF, sizeof(sylverant_unit_t));
 
                     cur_item = (sylverant_item_t *)u;
-                    cur_hnd = &handle_unit;
                     u->base.item_code = code;
+                    u->base.auto_reject = 0;
+                    u->base.reject_max = 0;
+                    u->base.versions = 0;
 
                     /* Since this can be -1 or -2, set it to an off-the-wall
                        value. */
                     u->max_plus = INT_MIN;
                     u->min_plus = INT_MIN;
+
+                    if(handle_unit(n, u)) {
+                        return -10;
+                    }
+
                     break;
                 }
 
                 default:
                     /* Invalid subtype, bail */
-                    DIE();
+                    debug(DBG_ERROR, "Invalid item subtype: %02x\n",
+                          (code >> 8) & 0xFF);
+                    return -11;
             }
 
             TAILQ_INSERT_TAIL(l->guards, cur_item, qentry);
@@ -639,19 +759,28 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
 
             m = (sylverant_mag_t *)malloc(sizeof(sylverant_mag_t));
             if(!m) {
-                DIE();
+                debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                perror("malloc");
+                return -12;
             }
 
             memset(m, 0xFF, sizeof(sylverant_mag_t));
 
             cur_item = (sylverant_item_t *)m;
-            cur_hnd = &handle_mag;
             m->base.item_code = code;
+            m->base.auto_reject = 0;
+            m->base.reject_max = 0;
+            m->base.versions = 0;
             m->allowed_colors = l->default_colors;
             m->allowed_cpb = l->default_cpb;
             m->allowed_rpb = l->default_rpb;
             m->allowed_lpb = l->default_lpb;
             TAILQ_INSERT_TAIL(l->mags, cur_item, qentry);
+
+            if(handle_mag(n, m)) {
+                return -13;
+            }
+
             break;
         }
 
@@ -661,82 +790,59 @@ static void handle_item(sylverant_limits_t *l, const XML_Char **attrs) {
 
             t = (sylverant_tool_t *)malloc(sizeof(sylverant_tool_t));
             if(!t) {
-                DIE();
+                debug(DBG_ERROR, "Couldn't allocate space for item\n");
+                perror("malloc");
+                return -14;
             }
 
             memset(t, 0xFF, sizeof(sylverant_tool_t));
 
             cur_item = (sylverant_item_t *)t;
-            cur_hnd = &handle_tool;
             t->base.item_code = code;
+            t->base.auto_reject = 0;
+            t->base.reject_max = 0;
+            t->base.versions = 0;
             TAILQ_INSERT_TAIL(l->tools, cur_item, qentry);
+
+            if(handle_tool(n, t)) {
+                return -15;
+            }
+
             break;
         }
 
         default:
             /* Unknown item */
-            DIE();
+            debug(DBG_ERROR, "Unknown item type: %02x\n", code & 0xFF);
+            return -16;
     }
 
-    /* Don't auto-reject items unless we hit that tag. */
-    cur_item->auto_reject = 0;
-}
-
-static void item_start_hnd(void *d, const XML_Char *name,
-                           const XML_Char **attrs) {
-    sylverant_limits_t *l = *(sylverant_limits_t **)d;
-
-    if(!strcmp(name, "items")) {
-        handle_items(l, attrs);
-    }
-    else if(!strcmp(name, "pbs") && in_items && !cur_item) {
-        parse_pbs(attrs, &l->default_cpb, &l->default_rpb, &l->default_lpb);
-    }
-    else if(!strcmp(name, "colors") && in_items && !cur_item) {
-        parse_colors(attrs, &l->default_colors);
-    }
-    else if(!strcmp(name, "item") && in_items) {
-        handle_item(l, attrs);
-    }
-    else if(cur_item && in_items && cur_hnd) {
-        cur_hnd(name, attrs);
-    }
-    else {
-        DIE();
-    }
-}
-
-static void item_end_hnd(void *d, const XML_Char *name) {
-    if(!strcmp(name, "items")) {
-        in_items = 0;
-    }
-    else if(!strcmp(name, "item")) {
-        cur_item = NULL;
-        cur_hnd = NULL;
-    }
+    return 0;
 }
 
 int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
-    FILE *fp;
-    XML_Parser p;
-    int bytes;
-    void *buf;
+    xmlParserCtxtPtr cxt;
+    xmlDoc *doc;
+    xmlNode *n;
     sylverant_limits_t *rv;
+    int swap_code, irv = 0;
+    xmlChar *bo, *def_act, *srank, *pbs;
 
     /* I'm lazy, and don't feel like typing this that many times. */
     typedef struct sylverant_item_queue iq_t;
 
-    /* Only one parser allowed at a time. */
-    if(parser) {
-        return -6;
+    /* Make sure the file exists and can be read, otherwise quietly bail out */
+    if(access(f, R_OK)) {
+        return -1;
     }
 
     /* Allocate space for the base of the list. */
     rv = (sylverant_limits_t *)malloc(sizeof(sylverant_limits_t));
 
     if(!rv) {
+        debug(DBG_ERROR, "Cannot make space for items list\n");
         *l = NULL;
-        return -4;
+        return -2;
     }
 
     /* Clear out the list. */
@@ -756,7 +862,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         free(rv->tools);
         free(rv);
         *l = NULL;
-        return -5;
+        return -3;
     }
 
     /* Initialize the buckets. After this block, its safe to actually use the
@@ -766,105 +872,167 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     TAILQ_INIT(rv->mags);
     TAILQ_INIT(rv->tools);
 
-    /* Set the default limits behavior to allow unknown items. */
-    rv->default_behavior = ITEM_DEFAULT_ALLOW;
-
     /* Set the default behavior for photon blasts/colors */
     rv->default_cpb = rv->default_rpb = rv->default_lpb = 0xFF;
     rv->default_colors = 0xFFFF;
 
+    /* Create an XML Parsing context */
+    cxt = xmlNewParserCtxt();
+    if(!cxt) {
+        debug(DBG_ERROR, "Couldn't create parsing context for item list\n");
+        irv = -4;
+        goto err;
+    }
+
     /* Open the configuration file for reading. */
-    fp = fopen(f, "r");
+    doc = xmlReadFile(f, NULL, XML_PARSE_DTDVALID);
 
-    if(!fp) {
-        sylverant_free_limits(rv);
-        *l = NULL;
-        return -1;
+    if(!doc) {
+        xmlParserError(cxt, "Error in parsing item list");
+        irv = -5;
+        goto err_cxt;
     }
 
-    /* Create the XML parser object. */
-    p = XML_ParserCreate(NULL);
-
-    if(!p)  {
-        fclose(fp);
-        sylverant_free_limits(rv);
-        *l = NULL;
-        return -2;
+    /* Make sure the document validated properly. */
+    if(!cxt->valid) {
+        xmlParserValidityError(cxt, "Validity Error parsing item list");
+        irv = -6;
+        goto err_doc;
     }
 
-    XML_SetElementHandler(p, &item_start_hnd, &item_end_hnd);
+    /* If we've gotten this far, we have a valid document, go through and read
+       everything contained within... */
+    n = xmlDocGetRootElement(doc);
 
-    /* Set up the user data so we can store the configuration. */
-    XML_SetUserData(p, &rv);
-
-    parser = p;
-
-    for(;;) {
-        /* Grab the buffer to read into. */
-        buf = XML_GetBuffer(p, BUF_SIZE);
-
-        if(!buf)    {
-            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
-            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
-                   (int)XML_GetCurrentColumnNumber(p));
-            XML_ParserFree(p);
-            sylverant_free_limits(rv);
-            fclose(fp);
-            *l = NULL;
-            parser = NULL;
-            in_items = swap_code = 0;
-            cur_item = NULL;
-            cur_hnd = NULL;
-            return -2;
-        }
-
-        /* Read in from the file. */
-        bytes = fread(buf, 1, BUF_SIZE, fp);
-
-        if(bytes < 0)   {
-            printf("Error reading file\n");
-            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
-                   (int)XML_GetCurrentColumnNumber(p));
-            XML_ParserFree(p);
-            sylverant_free_limits(rv);
-            fclose(fp);
-            *l = NULL;
-            parser = NULL;
-            in_items = swap_code = 0;
-            cur_item = NULL;
-            cur_hnd = NULL;
-            return -2;
-        }
-
-        /* Parse the bit we read in. */
-        if(!XML_ParseBuffer(p, bytes, !bytes))  {
-            printf("%s\n", XML_ErrorString(XML_GetErrorCode(p)));
-            printf("\tAt: %d:%d\n", (int)XML_GetCurrentLineNumber(p),
-                   (int)XML_GetCurrentColumnNumber(p));
-            XML_ParserFree(p);
-            sylverant_free_limits(rv);
-            fclose(fp);
-            *l = NULL;
-            parser = NULL;
-            in_items = swap_code = 0;
-            cur_item = NULL;
-            cur_hnd = NULL;
-            return -3;
-        }
-
-        if(!bytes)  {
-            break;
-        }
+    if(!n) {
+        debug(DBG_ERROR, "Empty item list document\n");
+        irv = -7;
+        goto err_doc;
     }
 
-    XML_ParserFree(p);
-    fclose(fp);
+    /* Make sure the config looks sane. */
+    if(xmlStrcmp(n->name, XC"items")) {
+        debug(DBG_ERROR, "Items list does not appear to be the right type\n");
+        irv = -8;
+        goto err_doc;
+    }
+
+    /* Grab the attributes of the root element */
+    bo = xmlGetProp(n, XC"byteorder");
+    def_act = xmlGetProp(n, XC"default");
+    srank = xmlGetProp(n, XC"check_sranks");
+    pbs = xmlGetProp(n, XC"check_pbs");
+
+    if(!bo || !def_act || !srank || !pbs) {
+        debug(DBG_ERROR, "items tag missing required attribute\n");
+        irv = -9;
+        xmlFree(bo);
+        xmlFree(def_act);
+        xmlFree(srank);
+        xmlFree(pbs);
+        
+        goto err_doc;
+    }
+
+    /* Grab what we need from the attributes */
+    if(!xmlStrcmp(bo, XC"big")) {
+        swap_code = 1;
+    }
+    else if(!xmlStrcmp(bo, XC"little")) {
+        swap_code = 0;
+    }
+    else {
+        debug(DBG_WARN, "Unknown byte order, assuming little endian\n");
+        swap_code = 0;
+    }
+
+    if(!xmlStrcmp(def_act, XC"reject")) {
+        rv->default_behavior = ITEM_DEFAULT_REJECT;
+    }
+    else if(!xmlStrcmp(def_act, XC"allow")) {
+        rv->default_behavior = ITEM_DEFAULT_ALLOW;
+    }
+    else {
+        debug(DBG_WARN, "Unknown default behavior, assuming allow\n");
+        rv->default_behavior = ITEM_DEFAULT_ALLOW;
+    }
+
+    if(!xmlStrcmp(srank, "true")) {
+        rv->check_srank_names = 1;
+    }
+    else if(!xmlStrcmp(srank, "false")) {
+        rv->check_srank_names = 0;
+    }
+    else {
+        debug(DBG_WARN, "Unknown value for check_sranks, assuming true\n");
+        rv->check_srank_names = 1;
+    }
+
+    if(!xmlStrcmp(pbs, "true")) {
+        rv->check_pbs = 1;
+    }
+    else if(!xmlStrcmp(pbs, "false")) {
+        rv->check_pbs = 0;
+    }
+    else {
+        debug(DBG_WARN, "Unknown value for check_pbs, assuming true\n");
+        rv->check_pbs = 1;
+    }
+
+    /* We're done with them, so clean them up... */
+    xmlFree(bo);
+    xmlFree(def_act);
+    xmlFree(srank);
+    xmlFree(pbs);    
+
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"item")) {
+            if(handle_item(n, rv, swap_code)) {
+                irv = -10;
+                goto err_doc;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"pbs")) {
+            if(handle_pbs(n, &rv->default_cpb, &rv->default_rpb,
+                            &rv->default_lpb)) {
+                irv = -11;
+                goto err_doc;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"colors")) {
+            if(handle_colors(n, &rv->default_colors)) {
+                irv = -12;
+                goto err_doc;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+        }
+
+        n = n->next;
+    }
+
+    /* If we get here, parsing finished fine... */
+    irv = 0;
     *l = rv;
-    parser = NULL;
-    in_items = swap_code = 0;
-    cur_item = NULL;
-    cur_hnd = NULL;
 
+    /* Cleanup/error handling below... */
+err_doc:
+    if(irv < 0) {
+        sylverant_free_limits(rv);
+    }
+
+    xmlFreeDoc(doc);
+err_cxt:
+    xmlFreeParserCtxt(cxt);
+err:
     return 0;
 }
 
@@ -1039,11 +1207,12 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check if the attribute of the weapon is valid */
-            if((i->data_b[4] & 0x7F) > Weapon_Attr_MAX) {
+            tmp = i->data_b[4] & 0x7F;
+            if(tmp > Weapon_Attr_MAX) {
                 return 0;
             }
 
-            if(!(w->valid_attrs & (1 << i->data_b[4]))) {
+            if(!(w->valid_attrs & (1 << tmp))) {
                 return 0;
             }
 
@@ -1105,7 +1274,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     }
 
                     /* See if its maxed and we're supposed to reject that */
-                    if(f->reject_max && dfp == f->max_dfp &&
+                    if(f->base.reject_max && dfp == f->max_dfp &&
                        evp == f->max_evp) {
                         return 0;
                     }
@@ -1130,7 +1299,7 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                     }
 
                     /* See if its maxed and we're supposed to reject that */
-                    if(b->reject_max && dfp == b->max_dfp &&
+                    if(b->base.reject_max && dfp == b->max_dfp &&
                        evp == b->max_evp) {
                         return 0;
                     }

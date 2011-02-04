@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010 Lawrence Sebald
+    Copyright (C) 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -57,6 +57,7 @@ typedef struct sylverant_item {
     uint32_t item_code;
     uint32_t versions;
     int auto_reject;
+    int reject_max;
 } sylverant_item_t;
 
 TAILQ_HEAD(sylverant_item_queue, sylverant_item);
@@ -83,7 +84,6 @@ typedef struct sylverant_frame {
     int min_dfp;
     int max_evp;
     int min_evp;
-    int reject_max;
 } sylverant_frame_t;
 
 /* Barrier information structure. */
@@ -94,7 +94,6 @@ typedef struct sylverant_barrier {
     int min_dfp;
     int max_evp;
     int min_evp;
-    int reject_max;
 } sylverant_barrier_t;
 
 /* Unit information structure. */
