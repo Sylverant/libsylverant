@@ -1089,6 +1089,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_weapon_t *w;
     int is_srank = 0, is_named_srank = 0;
     uint8_t tmp;
+    int is_special_weapon = i->data_b[4] == 0x80;
 
     /* Grab the real item type, if its a v2 item */
     if(i->data_b[5]) {
@@ -1181,9 +1182,11 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
                 return 0;
             }
 
-            /* Check the grind value first */
-            if((w->max_grind != -1 && i->data_b[3] > w->max_grind) ||
-               (w->min_grind != -1 && i->data_b[3] < w->min_grind)) {
+            /* Check the grind value first -- we have to ignore these on
+               SPECIAL WEAPONs, since PSO is screwy in dealing with them... */
+            if(((w->max_grind != -1 && i->data_b[3] > w->max_grind) ||
+                (w->min_grind != -1 && i->data_b[3] < w->min_grind)) &&
+               !is_special_weapon) {
                 return 0;
             }
 
