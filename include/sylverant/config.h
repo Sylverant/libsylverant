@@ -95,6 +95,7 @@ typedef struct sylverant_ship {
     char **info_files_desc;
     char *quests_file;
     char *quests_dir;
+    char *bans_file;
 
     uint32_t ship_ip;
     uint32_t shipgate_flags;
@@ -113,7 +114,8 @@ typedef struct sylverant_ship {
         float meseta;
     } drops;
 
-    int event;
+    int game_event;
+    int lobby_event;
     float exp_rate;
 } sylverant_ship_t;
 

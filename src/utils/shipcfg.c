@@ -127,36 +127,50 @@ err:
 }
 
 static int handle_event(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *num;
+    xmlChar *game, *lobby;
     int rv;
     long rv2;
 
     /* Grab the attributes of the tag. */
-    num = xmlGetProp(n, XC"num");
+    game = xmlGetProp(n, XC"game");
+    lobby = xmlGetProp(n, XC"lobby");
 
     /* Make sure we have the data */
-    if(!num) {
+    if(!game || !lobby) {
         debug(DBG_ERROR, "Event number not given\n");
         rv = -1;
         goto err;
     }
 
-    /* Parse the event out */
+    /* Parse the game event out */
     errno = 0;
-    rv2 = strtol((char *)num, NULL, 0);
+    rv2 = strtol((char *)game, NULL, 0);
 
-    if(((rv2 == 0 || rv2 == LONG_MIN || rv2 == LONG_MAX) && errno) ||
-       rv2 > 14) {
-        debug(DBG_ERROR, "Invalid event given for ship: %s\n", (char *)num);
+    if(errno || rv2 > 6) {
+        debug(DBG_ERROR, "Invalid game event given for ship: %s\n",
+              (char *)game);
         rv = -3;
         goto err;
     }
 
-    cur->event = (int)rv2;
+    cur->game_event = (int)rv2;
+
+    /* Parse the lobby event out */
+    rv2 = strtol((char *)lobby, NULL, 0);
+
+    if(errno || rv2 > 14) {
+        debug(DBG_ERROR, "Invalid lobby event given for ship: %s\n",
+              (char *)lobby);
+        rv = -3;
+        goto err;
+    }
+
+    cur->lobby_event = (int)rv2;
     rv = 0;
 
 err:
-    xmlFree(num);
+    xmlFree(game);
+    xmlFree(lobby);
     return rv;
 }
 
@@ -270,6 +284,24 @@ static int handle_motd(xmlNode *n, sylverant_ship_t *cur) {
     cur->motd_file[255] = '\0';
 
     xmlFree(fn);
+    return 0;
+}
+
+static int handle_bans(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the attributes of the tag. */
+    fn = xmlGetProp(n, XC"file");
+
+    /* Make sure we have the data */
+    if(!fn) {
+        debug(DBG_ERROR, "Bans filename not given\n");
+        return -1;
+    }
+
+    /* Copy it over to the struct */
+    cur->bans_file = (char *)fn;
+
     return 0;
 }
 
@@ -447,6 +479,12 @@ static int handle_ship(xmlNode *n, sylverant_shipcfg_t **cfgp) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n2->name, XC"bans")) {
+            if(handle_bans(n2, cur)) {
+                rv = -10;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
                   n2->line);
@@ -599,6 +637,7 @@ int sylverant_free_ship_config(sylverant_shipcfg_t *cfg) {
             }
 
             free(cfg->ships[i].quests_file);
+            xmlFree(cfg->ships[i].bans_file);
         }
 
         /* Clean up the base structure. */
