@@ -1213,6 +1213,12 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
                         return 0;
                     }
                 }
+
+                /* Make sure percents are evenly divisible by 5. */
+                if(((s8)i->data_b[7]) % 5 || ((s8)i->data_b[9]) % 5 ||
+                   ((s8)i->data_b[11] % 5)) {
+                    return 0;
+                }
             }
 
             /* Check if the attribute of the weapon is valid */
