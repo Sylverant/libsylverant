@@ -109,7 +109,7 @@ static int handle_pbs(xmlNode *n, uint8_t *c, uint8_t *r, uint8_t *l) {
 
     /* Grab the attributes */
     pos = xmlGetProp(n, XC"pos");
-    pbs = xmlGetProp(n, XC"pbs");
+    pbs = xmlGetProp(n, XC"disallow");
 
     if(!pos || !pbs) {
         debug(DBG_ERROR, "pbs tag without required attributes\n");
@@ -388,6 +388,8 @@ static int handle_weapon(xmlNode *n, sylverant_weapon_t *w) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_frame(xmlNode *n, sylverant_frame_t *f) {
@@ -428,6 +430,8 @@ static int handle_frame(xmlNode *n, sylverant_frame_t *f) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_barrier(xmlNode *n, sylverant_barrier_t *b) {
@@ -463,6 +467,8 @@ static int handle_barrier(xmlNode *n, sylverant_barrier_t *b) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_unit(xmlNode *n, sylverant_unit_t *u) {
@@ -493,6 +499,8 @@ static int handle_unit(xmlNode *n, sylverant_unit_t *u) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_mag(xmlNode *n, sylverant_mag_t *m) {
@@ -564,6 +572,8 @@ static int handle_mag(xmlNode *n, sylverant_mag_t *m) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_tool(xmlNode *n, sylverant_tool_t *t) {
@@ -594,6 +604,8 @@ static int handle_tool(xmlNode *n, sylverant_tool_t *t) {
 
         n = n->next;
     }
+
+    return 0;
 }
 
 static int handle_item(xmlNode *n, sylverant_limits_t *l, int swap) {
@@ -1033,7 +1045,7 @@ err_doc:
 err_cxt:
     xmlFreeParserCtxt(cxt);
 err:
-    return 0;
+    return irv;
 }
 
 static void clean_list(struct sylverant_item_queue *q) {
