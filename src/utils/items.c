@@ -1117,12 +1117,6 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             is_named_srank = 1;
 
             if(l->check_srank_names) {
-                /* Make sure this S-Rank doesn't have the "name-only" flag set,
-                   since that's not legitimately available in game. */
-                if((i->data_b[6] & 0x88) == 0x88) {
-                    return 0;
-                }
-                
                 /* Check each character of the S-Rank name for validity. Only
                    A-Z are legitimately available. */
                 /* First character */
