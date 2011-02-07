@@ -636,7 +636,8 @@ int sylverant_free_ship_config(sylverant_shipcfg_t *cfg) {
                 free(cfg->ships[i].info_files_desc);
             }
 
-            free(cfg->ships[i].quests_file);
+            xmlFree(cfg->ships[i].quests_file);
+            xmlFree(cfg->ships[i].quests_dir);
             xmlFree(cfg->ships[i].bans_file);
         }
 
