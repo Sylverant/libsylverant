@@ -27,11 +27,8 @@
 #define DBG_WARN        10
 #define DBG_ERROR       20
 
-/* Threshold to print to stderr */
-#define DBG_STDERR_THRESHOLD DBG_WARN
-
 void debug_set_threshold(int level);
+FILE *debug_set_file(FILE *fp);
 void debug(int level, const char *fmt, ...);
-void fdebug(FILE *fp, int level, const char *fmt, ...);
 
 #endif /* !DEBUG_H */

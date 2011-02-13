@@ -25,49 +25,31 @@
 #include "sylverant/debug.h"
 
 static int min_level = DBG_LOG;
+static FILE *dfp = NULL;
 
 void debug_set_threshold(int level) {
     min_level = level;
 }
 
-void debug(int level, const char *fmt, ...) {
-    va_list args;
-    FILE *fp = stdout;
-    struct timeval rawtime;
-    struct tm cooked;
+FILE *debug_set_file(FILE *fp) {
+    FILE *ofp = dfp;
 
-    /* Make sure we want to receive messages at this level. */
-    if(level < min_level) {
-        return;
+    if(fp) {
+        dfp = fp;
     }
 
-    /* Should we be printing to stderr? */
-    if(level >= DBG_STDERR_THRESHOLD) {
-        fp = stderr;
-    }
-
-    /* Get the timestamp */
-    gettimeofday(&rawtime, NULL);
-
-    /* Get UTC */
-    gmtime_r(&rawtime.tv_sec, &cooked);
-
-    /* Print the timestamp */
-    fprintf(fp, "[%u:%02u:%02u: %02u:%02u:%02u.%03u]: ", cooked.tm_year + 1900,
-            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
-            cooked.tm_sec, (unsigned int)(rawtime.tv_usec / 1000));
-
-    va_start(args, fmt);
-    vfprintf(fp, fmt, args);
-    va_end(args);
-
-    fflush(fp);
+    return ofp;
 }
 
-void fdebug(FILE *fp, int level, const char *fmt, ...) {
+void debug(int level, const char *fmt, ...) {
     va_list args;
     struct timeval rawtime;
     struct tm cooked;
+
+    /* If we don't have something set already, default to stdout. */
+    if(!dfp) {
+        dfp = stdout;
+    }
 
     /* Make sure we want to receive messages at this level. */
     if(level < min_level) {
@@ -81,13 +63,13 @@ void fdebug(FILE *fp, int level, const char *fmt, ...) {
     gmtime_r(&rawtime.tv_sec, &cooked);
 
     /* Print the timestamp */
-    fprintf(fp, "[%u:%02u:%02u: %02u:%02u:%02u.%03u]: ", cooked.tm_year + 1900,
+    fprintf(dfp, "[%u:%02u:%02u: %02u:%02u:%02u.%03u]: ", cooked.tm_year + 1900,
             cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
             cooked.tm_sec, (unsigned int)(rawtime.tv_usec / 1000));
 
     va_start(args, fmt);
-    vfprintf(fp, fmt, args);
+    vfprintf(dfp, fmt, args);
     va_end(args);
 
-    fflush(fp);
+    fflush(dfp);
 }
