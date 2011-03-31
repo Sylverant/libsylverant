@@ -1377,19 +1377,6 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             return 0;
         }
 
-        /* Make sure that they're marked to have PBs if they have one */
-        if(cpb && !hascpb) {
-            return 0;
-        }
-
-        if(rpb && !hasrpb) {
-            return 0;
-        }
-
-        if(lpb && !haslpb) {
-            return 0;
-        }
-
         /* Make sure there's no overlap between center and right (left can't
            overlap at all by design) */
         if(hascpb && hasrpb && cpb == rpb) {
