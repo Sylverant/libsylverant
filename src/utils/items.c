@@ -1178,6 +1178,20 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
         }
     }
 
+    /* Check for duplicate percents, as long as its not a named S-Rank. */
+    if(!is_named_srank) {
+        /* See if the first percent attribute matches with the others */
+        if(i->data_b[6] && (i->data_b[6] == i->data_b[8] ||
+                            i->data_b[6] == i->data_b[10])) {
+            return 0;
+        }
+
+        /* Only case left to try is the second one with the third... */
+        if(i->data_b[8] && i->data_b[8] == i->data_b[10]) {
+            return 0;
+        }
+    }
+
     /* Find the item in our list, if its there */
     TAILQ_FOREACH(j, l->weapons, qentry) {
         if(j->item_code == ic && (j->versions & version) == version) {
