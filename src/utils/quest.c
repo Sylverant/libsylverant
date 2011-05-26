@@ -355,13 +355,13 @@ int sylverant_quests_read(const char *filename, sylverant_quest_list_t *rv) {
     xmlNode *n;
     int irv = 0;
 
+    /* Clear out the config. */
+    memset(rv, 0, sizeof(sylverant_quest_list_t));
+
     /* Make sure the file exists and can be read, otherwise quietly bail out */
     if(access(filename, R_OK)) {
         return -1;
     }
-
-    /* Clear out the config. */
-    memset(rv, 0, sizeof(sylverant_quest_list_t));
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
