@@ -65,6 +65,8 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     unsigned long episode, id_num;
     long event_num;
     sylverant_quest_t *q;
+    char *lasts, *token;
+    int event_list = 0;
 
     /* Grab the attributes we're expecting */
     name = xmlGetProp(n, XC"name");
@@ -108,14 +110,49 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         goto err;
     }
 
-    /* Make sure the event is sane */
-    errno = 0;
-    event_num = strtol(event, NULL, 0);
+    /* Make sure the event list is sane */
+    token = strtok_r((char *)event, ", ", &lasts);
 
-    if(errno || event_num < -1 || event_num > 14) {
+    if(!token) {
         debug(DBG_ERROR, "Invalid event given for quest: %s\n", event);
         rv = -4;
         goto err;
+    }
+
+    while(token) {
+        /* Parse the token */
+        errno = 0;
+        event_num = strtol(token, NULL, 0);
+
+        if(errno || event_num < -1 || event_num > 14) {
+            debug(DBG_ERROR, "Invalid token in event: %s\n", token);
+            rv = -9;
+            goto err;
+        }
+
+        /* Make sure its valid now */
+        if(event_list == -1) {
+            debug(DBG_ERROR, "Invalid event number specified after -1: %s\n",
+                  token);
+            rv = -10;
+            goto err;
+        }
+        else if(event_list != 0 && event_num == -1) {
+            debug(DBG_ERROR, "Invalid to specify -1 after an event\n");
+            rv = -11;
+            goto err;
+        }
+
+        /* Set the bit for the specified event */
+        if(event_num == -1) {
+            event_list = -1;
+        }
+        else {
+            event_list |= (1 << event_num);
+        }
+
+        /* Read the next event in, if any */
+        token = strtok_r(NULL, ", ", &lasts);
     }
 
     /* Make sure the id is sane */
@@ -147,7 +184,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     /* Copy over what we have so far */
     q->qid = (uint32_t)id_num;
     q->episode = (int)episode;
-    q->event = (int)event_num;
+    q->event = (int)event_list;
     q->format = (int)format;
 
     strncpy(q->name, name, 31);
