@@ -47,6 +47,8 @@ typedef struct sylverant_quest {
     int episode;
     int event;
     int format;
+    int max_players;
+    int min_players;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

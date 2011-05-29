@@ -60,9 +60,10 @@ static int handle_short(xmlNode *n, sylverant_quest_t *q) {
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id;
+    xmlChar *minpl, *maxpl;
     int rv = 0, format;
     void *tmp;
-    unsigned long episode, id_num;
+    unsigned long episode, id_num, min_pl = 1, max_pl = 4;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -79,6 +80,8 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     event = xmlGetProp(n, XC"event");
     fmt = xmlGetProp(n, XC"format");
     id = xmlGetProp(n, XC"id");
+    minpl = xmlGetProp(n, XC"minpl");
+    maxpl = xmlGetProp(n, XC"maxpl");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !v2 || !gc || !bb || !ep || !event || !fmt ||
@@ -165,6 +168,27 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         goto err;
     }
 
+    /* Make sure the min/max players count is sane */
+    if(minpl) {
+        min_pl = strtoul(minpl, NULL, 0);
+        
+        if(min_pl < 1 || min_pl > 4) {
+            debug(DBG_ERROR, "Invalid minimum players given: %s\n", minpl);
+            rv = -9;
+            goto err;
+        }
+    }
+
+    if(maxpl) {
+        max_pl = strtoul(maxpl, NULL, 0);
+        
+        if(max_pl < 1 || max_pl > 4 || max_pl < min_pl) {
+            debug(DBG_ERROR, "Invalid maximum players given: %s\n", maxpl);
+            rv = -10;
+            goto err;
+        }
+    }
+
     /* Allocate space for the quest */
     tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
 
@@ -204,6 +228,9 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     if(!xmlStrcmp(bb, XC"true")) {
         q->versions |= SYLVERANT_QUEST_BB;
     }
+
+    q->min_players = min_pl;
+    q->max_players = max_pl;
 
     /* Now that we're done with that, deal with any children of the node */
     n = n->children;
