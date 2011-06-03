@@ -260,10 +260,8 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
     }
 
     /* Copy it over to the struct */
-    strncpy(cur->limits_file, (char *)fn, 255);
-    cur->limits_file[255] = '\0';
+    cur->limits_file = (char *)fn;
 
-    xmlFree(fn);
     return 0;
 }
 
@@ -280,10 +278,8 @@ static int handle_motd(xmlNode *n, sylverant_ship_t *cur) {
     }
 
     /* Copy it over to the struct */
-    strncpy(cur->motd_file, (char *)fn, 255);
-    cur->motd_file[255] = '\0';
+    cur->motd_file = (char *)fn;
 
-    xmlFree(fn);
     return 0;
 }
 
@@ -301,6 +297,24 @@ static int handle_bans(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Copy it over to the struct */
     cur->bans_file = (char *)fn;
+
+    return 0;
+}
+
+static int handle_scripts(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the attributes of the tag. */
+    fn = xmlGetProp(n, XC"file");
+
+    /* Make sure we have the data */
+    if(!fn) {
+        debug(DBG_ERROR, "Scripts filename not given\n");
+        return -1;
+    }
+
+    /* Copy it over to the struct */
+    cur->scripts_file = (char *)fn;
 
     return 0;
 }
@@ -393,13 +407,9 @@ static int handle_ship(xmlNode *n, sylverant_shipcfg_t **cfgp) {
     }
 
     /* Copy out the strings out that we need */
-    strncpy(cur->name, (char *)name, 255);
-    strncpy(cur->key_file, (char *)key, 255);
-    strncpy(cur->gm_file, (char *)gms, 255);
-    
-    cur->name[255] = '\0';
-    cur->key_file[255] = '\0';
-    cur->gm_file[255] = '\0';
+    cur->name = (char *)name;
+    cur->key_file = (char *)key;
+    cur->gm_file = (char *)gms;
 
     /* Copy out the gmonly flag */
     if(!xmlStrcmp(gmonly, XC"true")) {
@@ -485,6 +495,12 @@ static int handle_ship(xmlNode *n, sylverant_shipcfg_t **cfgp) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n2->name, XC"scripts")) {
+            if(handle_scripts(n2, cur)) {
+                rv = -11;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
                   n2->line);
@@ -496,10 +512,7 @@ static int handle_ship(xmlNode *n, sylverant_shipcfg_t **cfgp) {
     rv = 0;
 
 err:
-    xmlFree(name);
     xmlFree(blocks);
-    xmlFree(key);
-    xmlFree(gms);
     xmlFree(gmonly);
     xmlFree(menu);
     return rv;
@@ -636,9 +649,15 @@ int sylverant_free_ship_config(sylverant_shipcfg_t *cfg) {
                 free(cfg->ships[i].info_files_desc);
             }
 
+            xmlFree(cfg->ships[i].name);
+            xmlFree(cfg->ships[i].key_file);
+            xmlFree(cfg->ships[i].gm_file);
+            xmlFree(cfg->ships[i].limits_file);
+            xmlFree(cfg->ships[i].motd_file);
             xmlFree(cfg->ships[i].quests_file);
             xmlFree(cfg->ships[i].quests_dir);
             xmlFree(cfg->ships[i].bans_file);
+            xmlFree(cfg->ships[i].scripts_file);
         }
 
         /* Clean up the base structure. */

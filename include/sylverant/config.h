@@ -86,16 +86,17 @@ typedef struct sylverant_config {
 } sylverant_config_t;
 
 typedef struct sylverant_ship {
-    char name[256];
-    char key_file[256];
-    char gm_file[256];
-    char limits_file[256];
-    char motd_file[256];
+    char *name;
+    char *key_file;
+    char *gm_file;
+    char *limits_file;
+    char *motd_file;
     char **info_files;
     char **info_files_desc;
     char *quests_file;
     char *quests_dir;
     char *bans_file;
+    char *scripts_file;
 
     uint32_t ship_ip;
     uint32_t shipgate_flags;
