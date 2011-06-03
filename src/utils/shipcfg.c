@@ -38,7 +38,7 @@
 
 #define XC (const xmlChar *)
 
-static int handle_shipgate(xmlNode *n, sylverant_shipcfg_t *cfg) {
+static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     xmlChar *ip, *port;
     int rv;
     unsigned long rv2;
@@ -367,30 +367,11 @@ err:
     return rv;
 }
 
-static int handle_ship(xmlNode *n, sylverant_shipcfg_t **cfgp) {
-    void *tmp;
-    sylverant_ship_t *cur;
-    sylverant_shipcfg_t *cfg = *cfgp;
+static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly;
     int rv;
     unsigned long rv2;
     xmlNode *n2;
-
-    /* Allocate space for the new ship... */
-    tmp = realloc(cfg, sizeof(sylverant_shipcfg_t) +
-                  ((cfg->ship_count + 1) * sizeof(sylverant_ship_t)));
-
-    if(!tmp) {
-        debug(DBG_ERROR, "Couldn't allocate space for ship\n");
-        perror("realloc");
-        return -1;
-    }
-
-    *cfgp = cfg = (sylverant_shipcfg_t *)tmp;
-    cur = &cfg->ships[cfg->ship_count++];
-
-    /* Clear the new ship */
-    memset(cur, 0, sizeof(sylverant_ship_t));
 
     /* Grab the attributes of the <ship> tag. */
     name = xmlGetProp(n, XC"name");
@@ -518,15 +499,15 @@ err:
     return rv;
 }
 
-int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
+int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
     xmlNode *n;
-    sylverant_shipcfg_t *rv;
+    sylverant_ship_t *rv;
     int irv = 0;
 
     /* Allocate space for the base of the config. */
-    rv = (sylverant_shipcfg_t *)malloc(sizeof(sylverant_shipcfg_t));
+    rv = (sylverant_ship_t *)malloc(sizeof(sylverant_ship_t));
 
     if(!rv) {
         *cfg = NULL;
@@ -536,7 +517,7 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
     }
 
     /* Clear out the config. */
-    memset(rv, 0, sizeof(sylverant_shipcfg_t));
+    memset(rv, 0, sizeof(sylverant_ship_t));
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
@@ -598,7 +579,7 @@ int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg) {
             }
         }
         else if(!xmlStrcmp(n->name, XC"ship")) {
-            if(handle_ship(n, &rv)) {
+            if(handle_ship(n, rv)) {
                 irv = -8;
                 goto err_doc;
             }
@@ -632,33 +613,30 @@ err:
     return irv;
 }
 
-int sylverant_free_ship_config(sylverant_shipcfg_t *cfg) {
+int sylverant_free_ship_config(sylverant_ship_t *cfg) {
     int i, j;
 
     /* Make sure we actually have a valid configuration pointer. */
     if(cfg) {
-        /* Look through each ship to clean up its info files. */
-        for(i = 0; i < cfg->ship_count; ++i) {
-            if(cfg->ships[i].info_files) {
-                for(j = 0; j < cfg->ships[i].info_file_count; ++j) {
-                    free(cfg->ships[i].info_files[j]);
-                    free(cfg->ships[i].info_files_desc[j]);
-                }
-
-                free(cfg->ships[i].info_files);
-                free(cfg->ships[i].info_files_desc);
+        if(cfg->info_files) {
+            for(j = 0; j < cfg->info_file_count; ++j) {
+                free(cfg->info_files[j]);
+                free(cfg->info_files_desc[j]);
             }
 
-            xmlFree(cfg->ships[i].name);
-            xmlFree(cfg->ships[i].key_file);
-            xmlFree(cfg->ships[i].gm_file);
-            xmlFree(cfg->ships[i].limits_file);
-            xmlFree(cfg->ships[i].motd_file);
-            xmlFree(cfg->ships[i].quests_file);
-            xmlFree(cfg->ships[i].quests_dir);
-            xmlFree(cfg->ships[i].bans_file);
-            xmlFree(cfg->ships[i].scripts_file);
+            free(cfg->info_files);
+            free(cfg->info_files_desc);
         }
+
+        xmlFree(cfg->name);
+        xmlFree(cfg->key_file);
+        xmlFree(cfg->gm_file);
+        xmlFree(cfg->limits_file);
+        xmlFree(cfg->motd_file);
+        xmlFree(cfg->quests_file);
+        xmlFree(cfg->quests_dir);
+        xmlFree(cfg->bans_file);
+        xmlFree(cfg->scripts_file);
 
         /* Clean up the base structure. */
         free(cfg);

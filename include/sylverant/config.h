@@ -85,7 +85,10 @@ typedef struct sylverant_config {
     } colors;
 } sylverant_config_t;
 
-typedef struct sylverant_ship {
+typedef struct sylverant_shipcfg {
+    uint32_t shipgate_ip;
+    uint16_t shipgate_port;
+
     char *name;
     char *key_file;
     char *gm_file;
@@ -107,26 +110,9 @@ typedef struct sylverant_ship {
     int blocks;
     int info_file_count;
 
-    struct {
-        float weapon;
-        float armor;
-        float mag;
-        float tool;
-        float meseta;
-    } drops;
-
     int game_event;
     int lobby_event;
-    float exp_rate;
 } sylverant_ship_t;
-
-typedef struct sylverant_shipcfg {
-    uint32_t shipgate_ip;
-    uint16_t shipgate_port;
-
-    int ship_count;
-    sylverant_ship_t ships[0];
-} sylverant_shipcfg_t;
 
 /* For when you only want database configuration. */
 extern int sylverant_read_dbconfig(sylverant_dbconfig_t *cfg);
@@ -136,9 +122,9 @@ extern int sylverant_read_config(sylverant_config_t *cfg);
 
 /* Read the ship configuration data. You are responsible for calling the
    function to clean up the configuration. */
-extern int sylverant_read_ship_config(const char *f, sylverant_shipcfg_t **cfg);
+extern int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg);
 
 /* Clean up a ship configuration structure. */
-extern int sylverant_free_ship_config(sylverant_shipcfg_t *cfg);
+extern int sylverant_free_ship_config(sylverant_ship_t *cfg);
 
 #endif /* !SYLVERANT__CONFIG_H */
