@@ -58,7 +58,7 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     rv = inet_pton(AF_INET, (char *)ip, &cfg->shipgate_ip);
 
     if(rv < 1) {
-        rv = inet_pton(AF_INET6, (char *)ip, &cfg->shipgate_ip6);
+        rv = inet_pton(AF_INET6, (char *)ip, cfg->shipgate_ip6);
 
         if(rv < 1) {
             debug(DBG_ERROR, "Invalid IP address given for shipgate: %s\n",
