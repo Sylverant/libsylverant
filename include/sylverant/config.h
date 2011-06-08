@@ -87,6 +87,7 @@ typedef struct sylverant_config {
 
 typedef struct sylverant_shipcfg {
     uint32_t shipgate_ip;
+    uint8_t shipgate_ip6[16];
     uint16_t shipgate_port;
 
     char *name;
@@ -102,6 +103,7 @@ typedef struct sylverant_shipcfg {
     char *scripts_file;
 
     uint32_t ship_ip;
+    uint8_t ship_ip6[16];
     uint32_t shipgate_flags;
 
     uint16_t base_port;

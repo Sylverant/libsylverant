@@ -58,10 +58,14 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     rv = inet_pton(AF_INET, (char *)ip, &cfg->shipgate_ip);
 
     if(rv < 1) {
-        debug(DBG_ERROR, "Invalid IP address given for shipgate: %s\n",
-              (char *)ip);
-        rv = -2;
-        goto err;
+        rv = inet_pton(AF_INET6, (char *)ip, &cfg->shipgate_ip6);
+
+        if(rv < 1) {
+            debug(DBG_ERROR, "Invalid IP address given for shipgate: %s\n",
+                  (char *)ip);
+            rv = -2;
+            goto err;
+        }
     }
 
     /* Parse the port out */
@@ -83,17 +87,18 @@ err:
 }
 
 static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *ip, *port;
+    xmlChar *ip, *port, *ip6;
     int rv;
     unsigned long rv2;
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"ip");
     port = xmlGetProp(n, XC"port");
+    ip6 = xmlGetProp(n, XC"ip6");
 
-    /* Make sure we have both of them... */
+    /* Make sure we have both of the required ones... */
     if(!ip || !port) {
-        debug(DBG_ERROR, "IP or port not given for ship\n");
+        debug(DBG_ERROR, "IPv4 Address or port not given for ship\n");
         rv = -1;
         goto err;
     }
@@ -102,7 +107,7 @@ static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
     rv = inet_pton(AF_INET, (char *)ip, &cur->ship_ip);
 
     if(rv < 1) {
-        debug(DBG_ERROR, "Invalid IP address given for ship: %s\n",
+        debug(DBG_ERROR, "Invalid IPv4 address given for ship: %s\n",
               (char *)ip);
         rv = -2;
         goto err;
@@ -118,11 +123,24 @@ static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
     }
 
     cur->base_port = (uint16_t)rv2;
+
+    /* See if we have a configured IPv6 address */
+    if(ip6) {
+        rv = inet_pton(AF_INET6, (char *)ip6, cur->ship_ip6);
+
+        /* This isn't actually fatal, for now, anyway. */
+        if(rv < 1) {
+            debug(DBG_WARN, "Invalid IPv6 address given for ship: %s\n",
+                  (char *)ip);
+        }
+    }
+
     rv = 0;
 
 err:
     xmlFree(ip);
     xmlFree(port);
+    xmlFree(ip6);
     return rv;
 }
 
