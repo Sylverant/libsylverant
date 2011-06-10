@@ -56,17 +56,11 @@ static int handle_database(xmlNode *n, sylverant_config_t *cur) {
     }
 
     /* Copy out the strings */
-    strncpy(cur->dbcfg.type, (char *)type, 255);
-    strncpy(cur->dbcfg.host, (char *)host, 255);
-    strncpy(cur->dbcfg.user, (char *)user, 255);
-    strncpy(cur->dbcfg.pass, (char *)pass, 255);
-    strncpy(cur->dbcfg.db, (char *)db, 255);
-
-    cur->dbcfg.type[255] = '\0';
-    cur->dbcfg.host[255] = '\0';
-    cur->dbcfg.user[255] = '\0';
-    cur->dbcfg.pass[255] = '\0';
-    cur->dbcfg.db[255] = '\0';
+    cur->dbcfg.type = (char *)type;
+    cur->dbcfg.host = (char *)host;
+    cur->dbcfg.user = (char *)user;
+    cur->dbcfg.pass = (char *)pass;
+    cur->dbcfg.db = (char *)db;
 
     /* Parse the port out */
     rv2 = strtoul((char *)port, NULL, 0);
@@ -77,15 +71,10 @@ static int handle_database(xmlNode *n, sylverant_config_t *cur) {
         goto err;
     }
 
-    cur->dbcfg.port = (unsigned int)rv2;
+    cur->dbcfg.port = (uint16_t)rv2;
     rv = 0;
 
 err:
-    xmlFree(type);
-    xmlFree(host);
-    xmlFree(user);
-    xmlFree(pass);
-    xmlFree(db);
     xmlFree(port);
     return rv;
 }
@@ -139,9 +128,7 @@ static int handle_quests(xmlNode *n, sylverant_config_t *cur) {
 
     /* Grab the directory, if given */
     if((fn = xmlGetProp(n, XC"dir"))) {
-        strncpy(cur->quests_dir, (char *)fn, 255);
-        cur->quests_dir[255] = '\0';
-        xmlFree(fn);
+        cur->quests_dir = (char *)fn;
         return 0;
     }
 
@@ -163,27 +150,36 @@ static int handle_limits(xmlNode *n, sylverant_config_t *cur) {
     }
 
     /* Copy it over to the struct */
-    strncpy(cur->limits_file, (char *)fn, 255);
-    cur->limits_file[255] = '\0';
+    cur->limits_file = (char *)fn;
 
-    xmlFree(fn);
     return 0;
 }
 
-int sylverant_read_config(sylverant_config_t *cfg) {
+int sylverant_read_config(sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
     xmlNode *n;
     int irv = 0;
+    sylverant_config_t *rv;
+
+    /* Allocate space for the base of the config. */
+    rv = (sylverant_config_t *)malloc(sizeof(sylverant_config_t));
+
+    if(!rv) {
+        *cfg = NULL;
+        debug(DBG_ERROR, "Couldn't allocate space for config\n");
+        perror("malloc");
+        return -1;
+    }
 
     /* Clear out the config. */
-    memset(cfg, 0, sizeof(sylverant_config_t));
+    memset(rv, 0, sizeof(sylverant_config_t));
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
     if(!cxt) {
         debug(DBG_ERROR, "Couldn't create parsing context for config\n");
-        irv = -1;
+        irv = -2;
         goto err;
     }
 
@@ -192,14 +188,14 @@ int sylverant_read_config(sylverant_config_t *cfg) {
 
     if(!doc) {
         xmlParserError(cxt, "Error in parsing config");
-        irv = -2;
+        irv = -3;
         goto err_cxt;
     }
 
     /* Make sure the document validated properly. */
     if(!cxt->valid) {
         xmlParserValidityError(cxt, "Validity Error parsing config");
-        irv = -3;
+        irv = -4;
         goto err_doc;
     }
 
@@ -209,14 +205,14 @@ int sylverant_read_config(sylverant_config_t *cfg) {
 
     if(!n) {
         debug(DBG_WARN, "Empty config document\n");
-        irv = -4;
+        irv = -5;
         goto err_doc;
     }
 
     /* Make sure the config looks sane. */
     if(xmlStrcmp(n->name, XC"sylverant_config")) {
         debug(DBG_WARN, "Config does not appear to be the right type\n");
-        irv = -5;
+        irv = -6;
         goto err_doc;
     }
 
@@ -228,26 +224,26 @@ int sylverant_read_config(sylverant_config_t *cfg) {
             continue;
         }
         else if(!xmlStrcmp(n->name, XC"database")) {
-            if(handle_database(n, cfg)) {
-                irv = -6;
-                goto err_doc;
-            }
-        }
-        else if(!xmlStrcmp(n->name, XC"server")) {
-            if(handle_server(n, cfg)) {
+            if(handle_database(n, rv)) {
                 irv = -7;
                 goto err_doc;
             }
         }
-        else if(!xmlStrcmp(n->name, XC"quests")) {
-            if(handle_quests(n, cfg)) {
+        else if(!xmlStrcmp(n->name, XC"server")) {
+            if(handle_server(n, rv)) {
                 irv = -8;
                 goto err_doc;
             }
         }
-        else if(!xmlStrcmp(n->name, XC"limits")) {
-            if(handle_limits(n, cfg)) {
+        else if(!xmlStrcmp(n->name, XC"quests")) {
+            if(handle_quests(n, rv)) {
                 irv = -9;
+                goto err_doc;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"limits")) {
+            if(handle_limits(n, rv)) {
+                irv = -10;
                 goto err_doc;
             }
         }
@@ -259,11 +255,41 @@ int sylverant_read_config(sylverant_config_t *cfg) {
         n = n->next;
     }
 
+    *cfg = rv;
+
     /* Cleanup/error handling below... */
 err_doc:
     xmlFreeDoc(doc);
 err_cxt:
     xmlFreeParserCtxt(cxt);
 err:
+    if(irv && irv > -7) {
+        free(rv);
+        *cfg = NULL;
+    }
+    else if(irv) {
+        sylverant_free_config(rv);
+        *cfg = NULL;
+    }
+
     return irv;
+}
+
+void sylverant_free_config(sylverant_config_t *cfg) {
+    int j;
+
+    /* Make sure we actually have a valid configuration pointer. */
+    if(cfg) {
+        /* Clean up the pointers */
+        xmlFree(cfg->dbcfg.type);
+        xmlFree(cfg->dbcfg.host);
+        xmlFree(cfg->dbcfg.user);
+        xmlFree(cfg->dbcfg.pass);
+        xmlFree(cfg->dbcfg.db);
+        xmlFree(cfg->quests_dir);
+        xmlFree(cfg->limits_file);
+
+        /* Clean up the base structure. */
+        free(cfg);
+    }
 }

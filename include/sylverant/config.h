@@ -35,54 +35,20 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOEP3     0x00000100
 
 typedef struct sylverant_dbconfig {
-    char type[256];
-    char host[256];
-    char user[256];
-    char pass[256];
-    char db[256];
-    unsigned int port;
+    char *type;
+    char *host;
+    char *user;
+    char *pass;
+    char *db;
+    uint16_t port;
 } sylverant_dbconfig_t;
 
 typedef struct sylverant_config {
     sylverant_dbconfig_t dbcfg;
     uint32_t server_ip;
-    uint32_t override_ip;
-    uint32_t netmask;
-    int override_on;
     uint16_t server_port;
-    char *welcome_message;
-    char quests_dir[256];
-    char limits_file[256];
-
-    struct {
-        int maxconn;
-        int throttle;
-    } patch;
-
-    struct {
-        int maxconn;
-    } login;
-
-    struct {
-        int maxships;
-    } shipgate;
-
-    struct {
-        int hildebear;
-        int rappy;
-        int lilly;
-        int slime;
-        int merissa;
-        int pazuzu;
-        int dorphon;
-        int kondrieu;
-    } rare_monsters;
-
-    struct {
-        uint32_t ggm;
-        uint32_t lgm;
-        uint32_t user;
-    } colors;
+    char *quests_dir;
+    char *limits_file;
 } sylverant_config_t;
 
 typedef struct sylverant_shipcfg {
@@ -116,17 +82,17 @@ typedef struct sylverant_shipcfg {
     int lobby_event;
 } sylverant_ship_t;
 
-/* For when you only want database configuration. */
-extern int sylverant_read_dbconfig(sylverant_dbconfig_t *cfg);
+/* Read the configuration for the login server, shipgate, and patch server. */
+extern int sylverant_read_config(sylverant_config_t **cfg);
 
-/* For when you want everything. */
-extern int sylverant_read_config(sylverant_config_t *cfg);
+/* Clean up a configuration structure. */
+extern void sylverant_free_config(sylverant_config_t *cfg);
 
 /* Read the ship configuration data. You are responsible for calling the
    function to clean up the configuration. */
 extern int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg);
 
 /* Clean up a ship configuration structure. */
-extern int sylverant_free_ship_config(sylverant_ship_t *cfg);
+extern void sylverant_free_ship_config(sylverant_ship_t *cfg);
 
 #endif /* !SYLVERANT__CONFIG_H */

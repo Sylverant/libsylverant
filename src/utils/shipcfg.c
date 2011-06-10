@@ -631,8 +631,8 @@ err:
     return irv;
 }
 
-int sylverant_free_ship_config(sylverant_ship_t *cfg) {
-    int i, j;
+void sylverant_free_ship_config(sylverant_ship_t *cfg) {
+    int j;
 
     /* Make sure we actually have a valid configuration pointer. */
     if(cfg) {
