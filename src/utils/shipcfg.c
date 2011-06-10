@@ -131,7 +131,7 @@ static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
         /* This isn't actually fatal, for now, anyway. */
         if(rv < 1) {
             debug(DBG_WARN, "Invalid IPv6 address given for ship: %s\n",
-                  (char *)ip);
+                  (char *)ip6);
         }
     }
 

@@ -80,13 +80,14 @@ err:
 }
 
 static int handle_server(xmlNode *n, sylverant_config_t *cur) {
-    xmlChar *ip, *port;
+    xmlChar *ip, *port, *ip6;
     int rv;
     unsigned long rv2;
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"addr");
     port = xmlGetProp(n, XC"port");
+    ip6 = xmlGetProp(n, XC"ip6");
 
     /* Make sure we have both of them... */
     if(!ip || !port) {
@@ -115,6 +116,17 @@ static int handle_server(xmlNode *n, sylverant_config_t *cur) {
     }
 
     cur->server_port = (uint16_t)rv2;
+
+    /* See if we have a configured IPv6 address */
+    if(ip6) {
+        rv = inet_pton(AF_INET6, (char *)ip6, cur->server_ip6);
+
+        /* This isn't actually fatal, for now, anyway. */
+        if(rv < 1) {
+            debug(DBG_WARN, "Invalid IPv6 address given: %s\n", (char *)ip6);
+        }
+    }
+
     rv = 0;
 
 err:
