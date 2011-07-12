@@ -8,6 +8,9 @@
     Other than minor changes (making it compile cleanly as C) this file has been
     left relatively intact from its original distribution, which was obtained on
     June 21st, 2009 from http://www.fuzziqersoftware.com/files/prsutil.zip
+
+    Modified June 30, 2011 by Lawrence Sebald:
+    Make the code work properly when compiled for a 64-bit target.
 */
 
 #include <stdio.h>
@@ -151,6 +154,7 @@ u32 prs_compress(void* source,void* dest,u32 size)
     int x,y,z;
     u32 xsize;
     int lsoffset,lssize;
+    u8 *src = (u8 *)source, *dst = (u8 *)dest;
     prs_init(&pc,source,dest);
 
     for (x = 0; x < size; x++)
@@ -159,12 +163,10 @@ u32 prs_compress(void* source,void* dest,u32 size)
         for (y = x - 3; (y > 0) && (y > (x - 0x1FF0)) && (xsize < 255); y--)
         {
             xsize = 3;
-            if (!memcmp((void*)((u32)source + y),(void*)((u32)source + x),xsize))
+            if (!memcmp(src + y, src + x, xsize))
             {
                 do xsize++;
-                while (!memcmp((void*)((u32)source + y),
-                               (void*)((u32)source + x),
-                               xsize) &&
+                while (!memcmp(src + y, src + x, xsize) &&
                        (xsize < 256) &&
                        ((y + xsize) < x) &&
                        ((x + xsize) <= size)
@@ -193,15 +195,16 @@ u32 prs_compress(void* source,void* dest,u32 size)
 
 u32 prs_decompress(void* source,void* dest) // 800F7CB0 through 800F7DE4 in mem 
 {
-    u32 r0,r3,r5,r6,r9; // 6 unnamed registers 
+    u32 r0,r3,r6,r9; // 6 unnamed registers 
     u32 bitpos = 9; // 4 named registers 
     u8* sourceptr = (u8*)source;
     u8* sourceptr_orig = (u8*)source;
     u8* destptr = (u8*)dest;
     u8* destptr_orig = (u8*)dest;
+    u8 *ptr_reg;
     u8 currentbyte;
     int flag;
-    int offset;
+    int32_t offset;
     u32 x,t; // 2 placed variables 
 
     currentbyte = sourceptr[0];
@@ -240,7 +243,7 @@ u32 prs_decompress(void* source,void* dest) // 800F7CB0 through 800F7DE4 in mem
             sourceptr += 2;
             if (offset == 0) return (u32)(destptr - destptr_orig);
             r3 = r3 & 0x00000007;
-            r5 = (offset >> 3) | 0xFFFFE000;
+            //r5 = (offset >> 3) | 0xFFFFE000;
             if (r3 == 0)
             {
                 flag = 0;
@@ -248,7 +251,8 @@ u32 prs_decompress(void* source,void* dest) // 800F7CB0 through 800F7DE4 in mem
                 sourceptr++;
                 r3++;
             } else r3 += 2;
-            r5 += (u32)destptr;
+            //r5 += (u32)destptr;
+            ptr_reg = destptr + ((int32_t)((offset >> 3) | 0xFFFFE000));
         } else {
             r3 = 0;
             for (x = 0; x < 2; x++)
@@ -268,30 +272,33 @@ u32 prs_decompress(void* source,void* dest) // 800F7CB0 through 800F7DE4 in mem
             offset = sourceptr[0] | 0xFFFFFF00;
             r3 += 2;
             sourceptr++;
-            r5 = offset + (u32)destptr;
+            //r5 = offset + (u32)destptr;
+            ptr_reg = destptr + offset;
         }
         if (r3 == 0) continue;
         t = r3;
         for (x = 0; x < t; x++)
         {
-            destptr[0] = *(u8*)r5;
-            r5++;
+            //destptr[0] = *(u8*)r5;
+            //r5++;
+            *destptr++ = *ptr_reg++;
             r3++;
-            destptr++;
+            //destptr++;
         }
     }
 }
 
 u32 prs_decompress_size(void* source)
 {
-    u32 r0,r3,r5,r6,r9; // 6 unnamed registers 
+    u32 r0,r3,r6,r9; // 6 unnamed registers 
     u32 bitpos = 9; // 4 named registers 
     u8* sourceptr = (u8*)source;
     u8* destptr = NULL;
     u8* destptr_orig = NULL;
+    u8 *ptr_reg;
     u8 currentbyte,lastbyte;
     int flag;
-    int offset;
+    int32_t offset;
     u32 x,t; // 2 placed variables 
 
     currentbyte = sourceptr[0];
@@ -329,14 +336,15 @@ u32 prs_decompress_size(void* source)
             sourceptr += 2;
             if (offset == 0) return (u32)(destptr - destptr_orig);
             r3 = r3 & 0x00000007;
-            r5 = (offset >> 3) | 0xFFFFE000;
+            //r5 = (offset >> 3) | 0xFFFFE000;
             if (r3 == 0)
             {
                 r3 = sourceptr[0];
                 sourceptr++;
                 r3++;
             } else r3 += 2;
-            r5 += (u32)destptr;
+            //r5 += (u32)destptr;
+            ptr_reg = destptr + ((int32_t)((offset >> 3) | 0xFFFFE000));
         } else {
             r3 = 0;
             for (x = 0; x < 2; x++)
@@ -356,13 +364,15 @@ u32 prs_decompress_size(void* source)
             offset = sourceptr[0] | 0xFFFFFF00;
             r3 += 2;
             sourceptr++;
-            r5 = offset + (u32)destptr;
+            //r5 = offset + (u32)destptr;
+            ptr_reg = destptr + offset;
         }
         if (r3 == 0) continue;
         t = r3;
         for (x = 0; x < t; x++)
         {
-            r5++;
+            //r5++;
+            ptr_reg++;
             r3++;
             destptr++;
         }

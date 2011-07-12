@@ -33,6 +33,7 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOPC      0x00000040
 #define SHIPGATE_FLAG_NOEP12    0x00000080
 #define SHIPGATE_FLAG_NOEP3     0x00000100
+#define SHIPGATE_FLAG_NOBB      0x00000200
 
 typedef struct sylverant_dbconfig {
     char *type;

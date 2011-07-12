@@ -1,7 +1,7 @@
 #  
 #   This file is part of Sylverant PSO Server.
 #  
-#   Copyright (C) 2009, 2010 Lawrence Sebald
+#   Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 #  
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License version 3
@@ -18,5 +18,5 @@
 sylverant_includedir = $(includedir)/sylverant
 sylverant_include_HEADERS = accounts.h config.h database.h debug.h prs.h \
                             mtwist.h encryption.h checksum.h \
-                            md5.h sha4.h quest.h items.h
+                            md5.h sha4.h quest.h items.h characters.h
 datarootdir = @datarootdir@

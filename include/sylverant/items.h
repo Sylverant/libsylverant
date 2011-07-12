@@ -19,8 +19,10 @@
 #ifndef SYLVERANT__ITEMS_H
 #define SYLVERANT__ITEMS_H
 
-#include <inttypes.h>
+#include <stdint.h>
 #include <sys/queue.h>
+
+#include "sylverant/characters.h"
 
 /* Item buckets. Each item gets put into one of these buckets when in the list,
    in order to make searching the list slightly easier. These are all based on
@@ -151,25 +153,6 @@ typedef struct sylverant_limits {
     uint8_t default_rpb;
     uint8_t default_lpb;
 } sylverant_limits_t;
-
-/* Raw inventory item data */
-typedef struct sylverant_iitem {
-    uint32_t flags[2];
-
-    union {
-        uint8_t data_b[12];
-        uint16_t data_w[6];
-        uint32_t data_l[3];
-    };
-
-    uint32_t item_id;
-
-    union {
-        uint8_t data2_b[4];
-        uint16_t data2_w[2];
-        uint32_t data2_l;
-    };
-} __attribute__((packed)) sylverant_iitem_t;
 
 /* Weapon Attributes -- Stored in byte #4 of weapons. */
 typedef enum sylverant_weapon_attr_e {
