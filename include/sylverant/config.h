@@ -35,6 +35,10 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOEP3     0x00000100
 #define SHIPGATE_FLAG_NOBB      0x00000200
 
+#define SYLVERANT_INFO_GC       0x00000001
+#define SYLVERANT_INFO_EP3      0x00000002
+#define SYLVERANT_INFO_BB       0x00000003
+
 typedef struct sylverant_dbconfig {
     char *type;
     char *host;
@@ -44,6 +48,12 @@ typedef struct sylverant_dbconfig {
     uint16_t port;
 } sylverant_dbconfig_t;
 
+typedef struct sylverant_info_file {
+    char *desc;
+    char *filename;
+    uint32_t versions;
+} sylverant_info_file_t;
+
 typedef struct sylverant_config {
     sylverant_dbconfig_t dbcfg;
     uint32_t server_ip;
@@ -51,6 +61,8 @@ typedef struct sylverant_config {
     uint16_t server_port;
     char *quests_dir;
     char *limits_file;
+    sylverant_info_file_t *info_files;
+    int info_file_count;
 } sylverant_config_t;
 
 typedef struct sylverant_shipcfg {

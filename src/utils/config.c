@@ -167,6 +167,69 @@ static int handle_limits(xmlNode *n, sylverant_config_t *cur) {
     return 0;
 }
 
+static int handle_info(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *fn, *desc, *gc, *ep3, *bb;
+    void *tmp;
+    int rv = 0;
+
+    /* Grab the attributes of the tag. */
+    fn = xmlGetProp(n, XC"file");
+    desc = xmlGetProp(n, XC"desc");
+    gc = xmlGetProp(n, XC"gc");
+    ep3 = xmlGetProp(n, XC"ep3");
+    bb = xmlGetProp(n, XC"bb");
+
+    /* Make sure we have all of them... */
+    if(!fn || !desc || !gc || !ep3 || !bb) {
+        debug(DBG_ERROR, "Incomplete info tag\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Allocate space for the new description. */
+    tmp = realloc(cur->info_files, (cur->info_file_count + 1) *
+                  sizeof(sylverant_info_file_t));
+    if(!tmp) {
+        debug(DBG_ERROR, "Couldn't allocate space for info file\n");
+        perror("realloc");
+        rv = -2;
+        goto err;
+    }
+
+    cur->info_files = (sylverant_info_file_t *)tmp;
+
+    /* Copy the data in */
+    cur->info_files[cur->info_file_count].versions = 0;
+    cur->info_files[cur->info_file_count].filename = fn;
+    cur->info_files[cur->info_file_count].desc = desc;
+
+    /* Fill in the applicable versions */
+    if(!xmlStrcmp(gc, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_GC;
+    }
+
+    if(!xmlStrcmp(ep3, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_EP3;
+    }
+
+    if(!xmlStrcmp(bb, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_BB;
+    }
+
+    ++cur->info_file_count;
+
+    xmlFree(bb);
+    xmlFree(ep3);
+    xmlFree(gc);
+
+    return 0;
+
+err:
+    xmlFree(fn);
+    xmlFree(desc);
+    return rv;
+}
+
 int sylverant_read_config(sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
@@ -259,6 +322,12 @@ int sylverant_read_config(sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"info")) {
+            if(handle_info(n, rv)) {
+                irv = -11;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -288,10 +357,15 @@ err:
 }
 
 void sylverant_free_config(sylverant_config_t *cfg) {
-    int j;
+    int i;
 
     /* Make sure we actually have a valid configuration pointer. */
     if(cfg) {
+        for(i = 0; i < cfg->info_file_count; ++i) {
+            xmlFree(cfg->info_files[i].filename);
+            xmlFree(cfg->info_files[i].desc);
+        }
+
         /* Clean up the pointers */
         xmlFree(cfg->dbcfg.type);
         xmlFree(cfg->dbcfg.host);
@@ -300,6 +374,8 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->dbcfg.db);
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->limits_file);
+
+        free(cfg->info_files);
 
         /* Clean up the base structure. */
         free(cfg);
