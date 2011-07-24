@@ -22,8 +22,7 @@ lib_LTLIBRARIES = libsylverant.la
 libsylverant_la_SOURCES =
 nodist_EXTRA_libsylverant_la_SOURCES = dummy.c
 
-libsylverant_la_LIBADD = src/accounts/libaccounts.la \
-                         src/database/libdatabase.la \
+libsylverant_la_LIBADD = src/database/libdatabase.la \
                          src/utils/libutils.la \
                          src/encryption/libencryption.la \
                          src/polarssl/libpolarssl.la

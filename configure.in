@@ -66,7 +66,6 @@ AC_CONFIG_FILES([Makefile
                  include/Makefile
                  include/sylverant/Makefile
                  src/Makefile
-                 src/accounts/Makefile
                  src/database/Makefile
                  src/utils/Makefile
                  src/encryption/Makefile
