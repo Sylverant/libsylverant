@@ -225,6 +225,9 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur) {
     return 0;
 
 err:
+    xmlFree(bb);
+    xmlFree(ep3);
+    xmlFree(gc);
     xmlFree(fn);
     xmlFree(desc);
     return rv;

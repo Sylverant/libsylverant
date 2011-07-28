@@ -35,9 +35,14 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOEP3     0x00000100
 #define SHIPGATE_FLAG_NOBB      0x00000200
 
-#define SYLVERANT_INFO_GC       0x00000001
-#define SYLVERANT_INFO_EP3      0x00000002
-#define SYLVERANT_INFO_BB       0x00000003
+/* The first few (V1, V2, PC) are only valid on the ship server, whereas the
+   others (GC, Ep3, BB) are only valid on the login server. */
+#define SYLVERANT_INFO_V1       0x00000001
+#define SYLVERANT_INFO_V2       0x00000002
+#define SYLVERANT_INFO_PC       0x00000004
+#define SYLVERANT_INFO_GC       0x00000008
+#define SYLVERANT_INFO_EP3      0x00000010
+#define SYLVERANT_INFO_BB       0x00000020
 
 typedef struct sylverant_dbconfig {
     char *type;
@@ -65,6 +70,15 @@ typedef struct sylverant_config {
     int info_file_count;
 } sylverant_config_t;
 
+typedef struct sylverant_event {
+    uint8_t start_month;
+    uint8_t start_day;
+    uint8_t end_month;
+    uint8_t end_day;
+    uint8_t lobby_event;
+    uint8_t game_event;
+} sylverant_event_t;
+
 typedef struct sylverant_shipcfg {
     uint32_t shipgate_ip;
     uint8_t shipgate_ip6[16];
@@ -75,12 +89,12 @@ typedef struct sylverant_shipcfg {
     char *gm_file;
     char *limits_file;
     char *motd_file;
-    char **info_files;
-    char **info_files_desc;
+    sylverant_info_file_t *info_files;
     char *quests_file;
     char *quests_dir;
     char *bans_file;
     char *scripts_file;
+    sylverant_event_t *events;
 
     uint32_t ship_ip;
     uint8_t ship_ip6[16];
@@ -91,9 +105,7 @@ typedef struct sylverant_shipcfg {
 
     int blocks;
     int info_file_count;
-
-    int game_event;
-    int lobby_event;
+    int event_count;
 } sylverant_ship_t;
 
 /* Read the configuration for the login server, shipgate, and patch server. */

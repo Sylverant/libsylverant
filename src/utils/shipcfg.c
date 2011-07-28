@@ -144,10 +144,16 @@ err:
     return rv;
 }
 
-static int handle_event(xmlNode *n, sylverant_ship_t *cur) {
+static int handle_event_old(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *game, *lobby;
     int rv;
     long rv2;
+
+    /* Make sure we don't already have an event setup done... */
+    if(cur->event_count != 0) {
+        debug(DBG_WARN, "Ignoring <event> tag on line %hu\n", n->line);
+        return 0;
+    }
 
     /* Grab the attributes of the tag. */
     game = xmlGetProp(n, XC"game");
@@ -155,7 +161,7 @@ static int handle_event(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Make sure we have the data */
     if(!game || !lobby) {
-        debug(DBG_ERROR, "Event number not given\n");
+        debug(DBG_ERROR, "Event number(s) not given\n");
         rv = -1;
         goto err;
     }
@@ -164,26 +170,196 @@ static int handle_event(xmlNode *n, sylverant_ship_t *cur) {
     errno = 0;
     rv2 = strtol((char *)game, NULL, 0);
 
-    if(errno || rv2 > 6) {
+    if(errno || rv2 > 6 || rv2 < 0) {
         debug(DBG_ERROR, "Invalid game event given for ship: %s\n",
               (char *)game);
-        rv = -3;
+        rv = -2;
         goto err;
     }
 
-    cur->game_event = (int)rv2;
+    cur->events[0].game_event = (uint8_t)rv2;
 
     /* Parse the lobby event out */
     rv2 = strtol((char *)lobby, NULL, 0);
 
-    if(errno || rv2 > 14) {
+    if(errno || rv2 > 14 || rv2 < 0) {
         debug(DBG_ERROR, "Invalid lobby event given for ship: %s\n",
               (char *)lobby);
         rv = -3;
         goto err;
     }
 
-    cur->lobby_event = (int)rv2;
+    cur->events[0].lobby_event = (uint8_t)rv2;
+    rv = 0;
+    cur->event_count = 1;
+
+err:
+    xmlFree(game);
+    xmlFree(lobby);
+    return rv;
+}
+
+static int handle_event_date(xmlNode *n, uint8_t *m, uint8_t *d) {
+    xmlChar *month, *day;
+    int rv;
+
+    /* Grab the attributes of the tag. */
+    month = xmlGetProp(n, XC"month");
+    day = xmlGetProp(n, XC"day");
+
+    /* Make sure we have the data */
+    if(!month || !day) {
+        debug(DBG_ERROR, "Event timeframe not specified properly\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Parse the game event out */
+    errno = 0;
+    *m = (uint8_t)strtoul((char *)month, NULL, 0);
+
+    if(errno || *m > 12 || *m < 1) {
+        debug(DBG_ERROR, "Invalid month given: %s\n", (char *)month);
+        rv = -3;
+        goto err;
+    }
+
+    /* Parse the lobby event out */
+    *d = (uint8_t)strtoul((char *)day, NULL, 0);
+
+    if(errno || *d < 1) {
+        debug(DBG_ERROR, "Invalid day given: %s\n", (char *)day);
+        rv = -4;
+        goto err;
+    }
+
+    /* Check the day for validity */
+    if(*m == 4 || *m == 6 || *m == 9 || *m == 11) {
+       if(*d > 30) {
+            debug(DBG_ERROR, "Invalid day given (month = %d): %d\n", (int)*m,
+                  (int)*d);
+            rv = -5;
+            goto err;
+       }
+    }
+    else if(*m == 2) {
+        if(*d > 29) {
+            debug(DBG_ERROR, "Invalid day given (month = %d): %d\n", (int)*m,
+                  (int)*d);
+            rv = -6;
+            goto err;
+        }
+    }
+    else {
+        if(*d > 31) {
+            debug(DBG_ERROR, "Invalid day given (month = %d): %d\n", (int)*m,
+                  (int)*d);
+            rv = -7;
+            goto err;
+        }
+    }
+
+    rv = 0;
+
+err:
+    xmlFree(day);
+    xmlFree(month);
+    return rv;
+}
+
+static int handle_event(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *game, *lobby;
+    int rv;
+    long rv2;
+    int c = cur->event_count;
+    void *tmp;
+    xmlNode *n2;
+
+    /* Make sure we already have an event setup started... */
+    if(c < 1) {
+        debug(DBG_WARN, "Ignoring <event> tag on line %hu\n", n->line);
+        return 0;
+    }
+
+    /* Grab the attributes of the tag. */
+    game = xmlGetProp(n, XC"game");
+    lobby = xmlGetProp(n, XC"lobby");
+
+    /* Make sure we have the data */
+    if(!game || !lobby) {
+        debug(DBG_ERROR, "Event number(s) not given\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Allocate the space we need */
+    tmp = realloc(cur->events, sizeof(sylverant_event_t) * (c + 1));
+    if(!tmp) {
+        debug(DBG_ERROR, "Cannot allocate memory for event: %s\n",
+              strerror(errno));
+        rv = -2;
+        goto err;
+    }
+
+    cur->events = (sylverant_event_t *)tmp;
+    memset(&cur->events[c], 0, sizeof(sylverant_event_t));
+
+    /* Parse the game event out */
+    errno = 0;
+    rv2 = strtol((char *)game, NULL, 0);
+
+    if(errno || rv2 > 6 || rv2 < -1) {
+        debug(DBG_ERROR, "Invalid game event given for ship: %s\n",
+              (char *)game);
+        rv = -3;
+        goto err;
+    }
+
+    cur->events[c].game_event = (uint8_t)rv2;
+
+    /* Parse the lobby event out */
+    rv2 = strtol((char *)lobby, NULL, 0);
+
+    if(errno || rv2 > 14 || rv2 < -1) {
+        debug(DBG_ERROR, "Invalid lobby event given for ship: %s\n",
+              (char *)lobby);
+        rv = -4;
+        goto err;
+    }
+
+    cur->events[c].lobby_event = (uint8_t)rv2;
+
+    /* Parse out the children of the <event> tag. */
+    n2 = n->children;
+    while(n2) {
+        if(n2->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n2 = n2->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n2->name, XC"start")) {
+            if(handle_event_date(n2, &cur->events[c].start_month,
+                                 &cur->events[c].start_day)) {
+                rv = -5;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"end")) {
+            if(handle_event_date(n2, &cur->events[c].end_month,
+                                 &cur->events[c].end_day)) {
+                rv = -6;
+                goto err;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
+                  n2->line);
+        }
+
+        n2 = n2->next;
+    }
+
+    ++cur->event_count;
     rv = 0;
 
 err:
@@ -193,25 +369,27 @@ err:
 }
 
 static int handle_info(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *fn, *desc;
-    int count;
+    xmlChar *fn, *desc, *v1, *v2, *pc;
     void *tmp;
     int rv = 0;
 
     /* Grab the attributes of the tag. */
     fn = xmlGetProp(n, XC"file");
     desc = xmlGetProp(n, XC"desc");
+    v1 = xmlGetProp(n, XC"v1");
+    v2 = xmlGetProp(n, XC"v2");
+    pc = xmlGetProp(n, XC"pc");
 
-    /* Make sure we have both of them... */
+    /* Make sure we have all of them... */
     if(!fn || !desc) {
-        debug(DBG_ERROR, "Filename or description not given for info\n");
+        debug(DBG_ERROR, "Incomplete info tag\n");
         rv = -1;
         goto err;
     }
 
-    /* Allocate space for the new entry */
-    count = cur->info_file_count;
-    tmp = realloc(cur->info_files, (count + 1) * sizeof(char *));
+    /* Allocate space for the new description. */
+    tmp = realloc(cur->info_files, (cur->info_file_count + 1) *
+                  sizeof(sylverant_info_file_t));
     if(!tmp) {
         debug(DBG_ERROR, "Couldn't allocate space for info file\n");
         perror("realloc");
@@ -219,27 +397,38 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur) {
         goto err;
     }
 
-    cur->info_files = (char **)tmp;
-
-    /* Allocate space for the new description. */
-    tmp = realloc(cur->info_files_desc, (count + 1) * sizeof(char *));
-    if(!tmp) {
-        debug(DBG_ERROR, "Couldn't allocate space for info desc\n");
-        perror("realloc");
-        rv = -3;
-        goto err;
-    }
-
-    cur->info_files_desc = (char **)tmp;
+    cur->info_files = (sylverant_info_file_t *)tmp;
 
     /* Copy the data in */
-    cur->info_files[count] = fn;
-    cur->info_files_desc[count] = desc;
+    cur->info_files[cur->info_file_count].versions = 0;
+    cur->info_files[cur->info_file_count].filename = fn;
+    cur->info_files[cur->info_file_count].desc = desc;
+
+    /* Fill in the applicable versions */
+    if(!v1 || !xmlStrcmp(v1, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_V1;
+    }
+
+    if(!v2 || !xmlStrcmp(v2, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_V2;
+    }
+
+    if(!pc || !xmlStrcmp(pc, XC"true")) {
+        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_PC;
+    }
+
     ++cur->info_file_count;
+
+    xmlFree(pc);
+    xmlFree(v2);
+    xmlFree(v1);
 
     return 0;
 
 err:
+    xmlFree(pc);
+    xmlFree(v2);
+    xmlFree(v1);
     xmlFree(fn);
     xmlFree(desc);
     return rv;
@@ -391,6 +580,53 @@ err:
     return rv;
 }
 
+static int handle_events(xmlNode *n, sylverant_ship_t *cur) {
+    int rv;
+    unsigned long rv2;
+    xmlNode *n2;
+
+    /* Make sure we don't already have an event setup done... */
+    if(cur->event_count != 0) {
+        debug(DBG_WARN, "Ignoring <events> tag on line %hu\n", n->line);
+        return 0;
+    }
+
+    /* Parse out the children of the <events> tag. */
+    n2 = n->children;
+    while(n2) {
+        if(n2->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n2 = n2->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n2->name, XC"defaults")) {
+            /* Cheat a bit here, and reuse the old <event> tag parsing code.
+               Since this has to be first, that should work fine... */
+            if(handle_event_old(n2, cur)) {
+                rv = -1;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"event")) {
+            if(handle_event(n2, cur)) {
+                rv = -2;
+                goto err;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
+                  n2->line);
+        }
+
+        n2 = n2->next;
+    }
+
+    rv = 0;
+
+err:
+    return rv;
+}
+
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly;
     int rv;
@@ -459,7 +695,7 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
             }
         }
         else if(!xmlStrcmp(n2->name, XC"event")) {
-            if(handle_event(n2, cur)) {
+            if(handle_event_old(n2, cur)) {
                 rv = -4;
                 goto err;
             }
@@ -506,6 +742,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n2->name, XC"events")) {
+            if(handle_events(n2, cur)) {
+                rv = -12;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
                   n2->line);
@@ -542,6 +784,18 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
 
     /* Clear out the config. */
     memset(rv, 0, sizeof(sylverant_ship_t));
+
+    /* Allocate space for the default event. */
+    rv->events = (sylverant_event_t *)malloc(sizeof(sylverant_event_t));
+    if(!rv->events) {
+        *cfg = NULL;
+        free(rv);
+        debug(DBG_ERROR, "Couldn't allocate space for event: %s\n",
+              strerror(errno));
+        return -1;
+    }
+
+    memset(rv->events, 0, sizeof(sylverant_event_t));
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
@@ -616,6 +870,11 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
         n = n->next;
     }
 
+    /* Did we configure a set of events, or just the default? */
+    if(rv->event_count == 0) {
+        rv->event_count = 1;
+    }
+
     *cfg = rv;
 
     /* Cleanup/error handling below... */
@@ -644,12 +903,11 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
     if(cfg) {
         if(cfg->info_files) {
             for(j = 0; j < cfg->info_file_count; ++j) {
-                free(cfg->info_files[j]);
-                free(cfg->info_files_desc[j]);
+                xmlFree(cfg->info_files[j].desc);
+                xmlFree(cfg->info_files[j].filename);
             }
 
             free(cfg->info_files);
-            free(cfg->info_files_desc);
         }
 
         xmlFree(cfg->name);
@@ -661,6 +919,8 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->bans_file);
         xmlFree(cfg->scripts_file);
+    
+        free(cfg->events);
 
         /* Clean up the base structure. */
         free(cfg);
