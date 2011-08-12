@@ -38,6 +38,13 @@
 
 #define XC (const xmlChar *)
 
+/* The list of language codes */
+#define LANGUAGE_CODE_COUNT     8
+
+static const char language_codes[LANGUAGE_CODE_COUNT][3] = {
+    "jp", "en", "de", "fr", "es", "cs", "ct", "kr"
+};
+
 static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     xmlChar *ip, *port;
     int rv;
@@ -368,10 +375,11 @@ err:
     return rv;
 }
 
-static int handle_info(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *fn, *desc, *v1, *v2, *pc;
+static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
+    xmlChar *fn, *desc, *v1, *v2, *pc, *lang;
     void *tmp;
-    int rv = 0;
+    int rv = 0, count = cur->info_file_count, i, done = 0;
+    char *lasts, *token;
 
     /* Grab the attributes of the tag. */
     fn = xmlGetProp(n, XC"file");
@@ -379,19 +387,25 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur) {
     v1 = xmlGetProp(n, XC"v1");
     v2 = xmlGetProp(n, XC"v2");
     pc = xmlGetProp(n, XC"pc");
+    lang = xmlGetProp(n, XC"languages");
 
     /* Make sure we have all of them... */
-    if(!fn || !desc) {
-        debug(DBG_ERROR, "Incomplete info tag\n");
+    if(!fn || (!desc && !is_motd)) {
+        debug(DBG_ERROR, "Incomplete info/motd tag\n");
         rv = -1;
         goto err;
     }
 
+    if(is_motd && desc) {
+        debug(DBG_ERROR, "MOTD should not have description!\n");
+        rv = -3;
+        goto err;
+    }
+
     /* Allocate space for the new description. */
-    tmp = realloc(cur->info_files, (cur->info_file_count + 1) *
-                  sizeof(sylverant_info_file_t));
+    tmp = realloc(cur->info_files, (count + 1) * sizeof(sylverant_info_file_t));
     if(!tmp) {
-        debug(DBG_ERROR, "Couldn't allocate space for info file\n");
+        debug(DBG_ERROR, "Couldn't allocate space for info/motd file\n");
         perror("realloc");
         rv = -2;
         goto err;
@@ -400,25 +414,51 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur) {
     cur->info_files = (sylverant_info_file_t *)tmp;
 
     /* Copy the data in */
-    cur->info_files[cur->info_file_count].versions = 0;
-    cur->info_files[cur->info_file_count].filename = fn;
-    cur->info_files[cur->info_file_count].desc = desc;
+    cur->info_files[count].versions = 0;
+    cur->info_files[count].filename = fn;
+    cur->info_files[count].desc = desc;
 
     /* Fill in the applicable versions */
     if(!v1 || !xmlStrcmp(v1, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_V1;
+        cur->info_files[count].versions |= SYLVERANT_INFO_V1;
     }
 
     if(!v2 || !xmlStrcmp(v2, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_V2;
+        cur->info_files[count].versions |= SYLVERANT_INFO_V2;
     }
 
     if(!pc || !xmlStrcmp(pc, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_PC;
+        cur->info_files[count].versions |= SYLVERANT_INFO_PC;
+    }
+
+    /* Parse the languages string, if given. */
+    if(lang) {
+        token = strtok_r((char *)lang, ", ", &lasts);
+
+        while(token) {
+            for(i = 0; i < LANGUAGE_CODE_COUNT && !done; ++i) {
+                if(!strcmp(token, language_codes[i])) {
+                    cur->info_files[count].languages |= (1 << i);
+                    done = 1;
+                }
+            }
+
+            if(!done) {
+                debug(DBG_WARN, "Ignoring unknown language in info/motd tag on "
+                      "line %hu: %s\n", n->line, token);
+            }
+
+            done = 0;
+            token = strtok_r(NULL, ", ", &lasts);
+        }
+    }
+    else {
+        cur->info_files[count].languages = 0xFFFFFFFF;
     }
 
     ++cur->info_file_count;
 
+    xmlFree(lang);
     xmlFree(pc);
     xmlFree(v2);
     xmlFree(v1);
@@ -468,24 +508,6 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Copy it over to the struct */
     cur->limits_file = (char *)fn;
-
-    return 0;
-}
-
-static int handle_motd(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *fn;
-
-    /* Grab the attributes of the tag. */
-    fn = xmlGetProp(n, XC"file");
-
-    /* Make sure we have the data */
-    if(!fn) {
-        debug(DBG_ERROR, "MOTD filename not given\n");
-        return -1;
-    }
-
-    /* Copy it over to the struct */
-    cur->motd_file = (char *)fn;
 
     return 0;
 }
@@ -701,7 +723,7 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
             }
         }
         else if(!xmlStrcmp(n2->name, XC"info")) {
-            if(handle_info(n2, cur)) {
+            if(handle_info(n2, cur, 0)) {
                 rv = -5;
                 goto err;
             }
@@ -719,7 +741,7 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
             }
         }
         else if(!xmlStrcmp(n2->name, XC"motd")) {
-            if(handle_motd(n2, cur)) {
+            if(handle_info(n2, cur, 1)) {
                 rv = -8;
                 goto err;
             }
@@ -914,7 +936,6 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->key_file);
         xmlFree(cfg->gm_file);
         xmlFree(cfg->limits_file);
-        xmlFree(cfg->motd_file);
         xmlFree(cfg->quests_file);
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->bans_file);

@@ -44,6 +44,16 @@ extern const char sylverant_ship_cfg[];
 #define SYLVERANT_INFO_EP3      0x00000010
 #define SYLVERANT_INFO_BB       0x00000020
 
+/* Languages that can be set for the info entries. */
+#define SYLVERANT_INFO_JAPANESE 0x00000001
+#define SYLVERANT_INFO_ENGLISH  0x00000002
+#define SYLVERANT_INFO_GERMAN   0x00000004
+#define SYLVERANT_INFO_FRENCH   0x00000008
+#define SYLVERANT_INFO_SPANISH  0x00000010
+#define SYLVERANT_INFO_CH_SIMP  0x00000020
+#define SYLVERANT_INFO_CH_TRAD  0x00000040
+#define SYLVERANT_INFO_KOREAN   0x00000080
+
 typedef struct sylverant_dbconfig {
     char *type;
     char *host;
@@ -57,6 +67,7 @@ typedef struct sylverant_info_file {
     char *desc;
     char *filename;
     uint32_t versions;
+    uint32_t languages;
 } sylverant_info_file_t;
 
 typedef struct sylverant_config {
@@ -88,7 +99,6 @@ typedef struct sylverant_shipcfg {
     char *key_file;
     char *gm_file;
     char *limits_file;
-    char *motd_file;
     sylverant_info_file_t *info_files;
     char *quests_file;
     char *quests_dir;
