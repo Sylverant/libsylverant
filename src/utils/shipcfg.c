@@ -466,6 +466,7 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
     return 0;
 
 err:
+    xmlFree(lang);
     xmlFree(pc);
     xmlFree(v2);
     xmlFree(v1);

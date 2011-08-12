@@ -35,6 +35,13 @@
 
 #define XC (const xmlChar *)
 
+/* The list of language codes */
+#define LANGUAGE_CODE_COUNT     8
+
+static const char language_codes[LANGUAGE_CODE_COUNT][3] = {
+    "jp", "en", "de", "fr", "es", "cs", "ct", "kr"
+};
+
 static int handle_database(xmlNode *n, sylverant_config_t *cur) {
     xmlChar *type, *host, *user, *pass, *db, *port;
     int rv;
@@ -167,10 +174,11 @@ static int handle_limits(xmlNode *n, sylverant_config_t *cur) {
     return 0;
 }
 
-static int handle_info(xmlNode *n, sylverant_config_t *cur) {
-    xmlChar *fn, *desc, *gc, *ep3, *bb;
+static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
+    xmlChar *fn, *desc, *gc, *ep3, *bb, *lang;
     void *tmp;
-    int rv = 0;
+    int rv = 0, count = cur->info_file_count, i, done = 0;
+    char *lasts, *token;
 
     /* Grab the attributes of the tag. */
     fn = xmlGetProp(n, XC"file");
@@ -178,17 +186,28 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur) {
     gc = xmlGetProp(n, XC"gc");
     ep3 = xmlGetProp(n, XC"ep3");
     bb = xmlGetProp(n, XC"bb");
+    lang = xmlGetProp(n, XC"languages");
 
     /* Make sure we have all of them... */
-    if(!fn || !desc || !gc || !ep3 || !bb) {
+    if(!fn || !gc || !ep3 || !bb) {
         debug(DBG_ERROR, "Incomplete info tag\n");
         rv = -1;
         goto err;
     }
 
+    if(!desc && !is_motd) {
+        debug(DBG_ERROR, "Incomplete info tag\n");
+        rv = -1;
+        goto err;
+    }
+    else if(desc && is_motd) {
+        debug(DBG_ERROR, "MOTD should not have description!\n");
+        rv = -3;
+        goto err;
+    }
+
     /* Allocate space for the new description. */
-    tmp = realloc(cur->info_files, (cur->info_file_count + 1) *
-                  sizeof(sylverant_info_file_t));
+    tmp = realloc(cur->info_files, (count + 1) * sizeof(sylverant_info_file_t));
     if(!tmp) {
         debug(DBG_ERROR, "Couldn't allocate space for info file\n");
         perror("realloc");
@@ -199,25 +218,51 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur) {
     cur->info_files = (sylverant_info_file_t *)tmp;
 
     /* Copy the data in */
-    cur->info_files[cur->info_file_count].versions = 0;
-    cur->info_files[cur->info_file_count].filename = fn;
-    cur->info_files[cur->info_file_count].desc = desc;
+    cur->info_files[count].versions = 0;
+    cur->info_files[count].filename = fn;
+    cur->info_files[count].desc = desc;
 
     /* Fill in the applicable versions */
     if(!xmlStrcmp(gc, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_GC;
+        cur->info_files[count].versions |= SYLVERANT_INFO_GC;
     }
 
     if(!xmlStrcmp(ep3, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_EP3;
+        cur->info_files[count].versions |= SYLVERANT_INFO_EP3;
     }
 
     if(!xmlStrcmp(bb, XC"true")) {
-        cur->info_files[cur->info_file_count].versions |= SYLVERANT_INFO_BB;
+        cur->info_files[count].versions |= SYLVERANT_INFO_BB;
+    }
+
+    /* Parse the languages string, if given. */
+    if(lang) {
+        token = strtok_r((char *)lang, ", ", &lasts);
+
+        while(token) {
+            for(i = 0; i < LANGUAGE_CODE_COUNT && !done; ++i) {
+                if(!strcmp(token, language_codes[i])) {
+                    cur->info_files[count].languages |= (1 << i);
+                    done = 1;
+                }
+            }
+
+            if(!done) {
+                debug(DBG_WARN, "Ignoring unknown language in info/motd tag on "
+                      "line %hu: %s\n", n->line, token);
+            }
+
+            done = 0;
+            token = strtok_r(NULL, ", ", &lasts);
+        }
+    }
+    else {
+        cur->info_files[count].languages = 0xFFFFFFFF;
     }
 
     ++cur->info_file_count;
 
+    xmlFree(lang);
     xmlFree(bb);
     xmlFree(ep3);
     xmlFree(gc);
@@ -225,6 +270,7 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur) {
     return 0;
 
 err:
+    xmlFree(lang);
     xmlFree(bb);
     xmlFree(ep3);
     xmlFree(gc);
@@ -326,8 +372,14 @@ int sylverant_read_config(sylverant_config_t **cfg) {
             }
         }
         else if(!xmlStrcmp(n->name, XC"info")) {
-            if(handle_info(n, rv)) {
+            if(handle_info(n, rv, 0)) {
                 irv = -11;
+                goto err_doc;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"motd")) {
+            if(handle_info(n, rv, 1)) {
+                irv = -12;
                 goto err_doc;
             }
         }
