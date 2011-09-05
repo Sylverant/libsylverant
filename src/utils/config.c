@@ -279,7 +279,7 @@ err:
     return rv;
 }
 
-int sylverant_read_config(sylverant_config_t **cfg) {
+int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
     xmlNode *n;
@@ -308,7 +308,12 @@ int sylverant_read_config(sylverant_config_t **cfg) {
     }
 
     /* Open the configuration file for reading. */
-    doc = xmlReadFile(sylverant_cfg, NULL, XML_PARSE_DTDVALID);
+    if(f) {
+        doc = xmlReadFile(f, NULL, XML_PARSE_DTDVALID);
+    }
+    else {
+        doc = xmlReadFile(sylverant_cfg, NULL, XML_PARSE_DTDVALID);
+    }
 
     if(!doc) {
         xmlParserError(cxt, "Error in parsing config");

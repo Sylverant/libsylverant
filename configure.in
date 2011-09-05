@@ -45,7 +45,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 
-PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.7])
+PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.6])
 CFLAGS="$CFLAGS $libxml2_CFLAGS"
 LIBS="$LIBS $libxml2_LIBS"
 

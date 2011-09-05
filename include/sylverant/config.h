@@ -119,7 +119,7 @@ typedef struct sylverant_shipcfg {
 } sylverant_ship_t;
 
 /* Read the configuration for the login server, shipgate, and patch server. */
-extern int sylverant_read_config(sylverant_config_t **cfg);
+extern int sylverant_read_config(const char *f, sylverant_config_t **cfg);
 
 /* Clean up a configuration structure. */
 extern void sylverant_free_config(sylverant_config_t *cfg);
