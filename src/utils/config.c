@@ -87,18 +87,16 @@ err:
 }
 
 static int handle_server(xmlNode *n, sylverant_config_t *cur) {
-    xmlChar *ip, *port, *ip6;
+    xmlChar *ip, *ip6;
     int rv;
-    unsigned long rv2;
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"addr");
-    port = xmlGetProp(n, XC"port");
     ip6 = xmlGetProp(n, XC"ip6");
 
     /* Make sure we have both of them... */
-    if(!ip || !port) {
-        debug(DBG_ERROR, "IP or port not given for server\n");
+    if(!ip) {
+        debug(DBG_ERROR, "IP or given for server\n");
         rv = -1;
         goto err;
     }
@@ -113,17 +111,6 @@ static int handle_server(xmlNode *n, sylverant_config_t *cur) {
         goto err;
     }
 
-    /* Parse the port out */
-    rv2 = strtoul((char *)port, NULL, 0);
-
-    if(rv2 == 0 || rv2 > 0xFFFF) {
-        debug(DBG_ERROR, "Invalid port given for server: %s\n", (char *)port);
-        rv = -3;
-        goto err;
-    }
-
-    cur->server_port = (uint16_t)rv2;
-
     /* See if we have a configured IPv6 address */
     if(ip6) {
         rv = inet_pton(AF_INET6, (char *)ip6, cur->server_ip6);
@@ -137,8 +124,8 @@ static int handle_server(xmlNode *n, sylverant_config_t *cur) {
     rv = 0;
 
 err:
+    xmlFree(ip6);
     xmlFree(ip);
-    xmlFree(port);
     return rv;
 }
 

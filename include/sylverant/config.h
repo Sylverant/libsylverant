@@ -74,7 +74,6 @@ typedef struct sylverant_config {
     sylverant_dbconfig_t dbcfg;
     uint32_t server_ip;
     uint8_t server_ip6[16];
-    uint16_t server_port;
     char *quests_dir;
     char *limits_file;
     sylverant_info_file_t *info_files;
