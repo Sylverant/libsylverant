@@ -94,9 +94,9 @@ static int handle_server(xmlNode *n, sylverant_config_t *cur) {
     ip = xmlGetProp(n, XC"addr");
     ip6 = xmlGetProp(n, XC"ip6");
 
-    /* Make sure we have both of them... */
+    /* Make sure we have what we need... */
     if(!ip) {
-        debug(DBG_ERROR, "IP or given for server\n");
+        debug(DBG_ERROR, "IP not given for server\n");
         rv = -1;
         goto err;
     }
@@ -126,6 +126,52 @@ static int handle_server(xmlNode *n, sylverant_config_t *cur) {
 err:
     xmlFree(ip6);
     xmlFree(ip);
+    return rv;
+}
+
+static int handle_shipgate(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *port, *cert, *key, *ca;
+    int rv = 0;
+    unsigned long rv2;
+
+    /* Grab the attributes of the tag. */
+    port = xmlGetProp(n, XC"port");
+    cert = xmlGetProp(n, XC"cert");
+    key = xmlGetProp(n, XC"key");
+    ca = xmlGetProp(n, XC"ca-cert");
+
+    /* Make sure we have what we need... */
+    if(!port || !cert || !key || !ca) {
+        debug(DBG_ERROR, "One or more required parameters not given for "
+              "shipgate\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Parse the port out */
+    rv2 = strtoul((char *)port, NULL, 0);
+
+    if(rv2 == 0 || rv2 > 0xFFFF) {
+        debug(DBG_ERROR, "Invalid port given for shipgate: %s\n", (char *)port);
+        rv = -3;
+        goto err;
+    }
+
+    cur->shipgate_port = (uint16_t)rv2;
+
+    /* Grab the certificate file */
+    cur->shipgate_cert = (char *)cert;
+    cur->shipgate_key = (char *)key;
+    cur->shipgate_ca = (char *)ca;
+
+err:
+    if(rv < 0) {
+        xmlFree(ca);
+        xmlFree(key);
+        xmlFree(cert);
+    }
+
+    xmlFree(port);
     return rv;
 }
 
@@ -375,6 +421,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"shipgate")) {
+            if(handle_shipgate(n, rv)) {
+                irv = -13;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -419,6 +471,9 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->dbcfg.user);
         xmlFree(cfg->dbcfg.pass);
         xmlFree(cfg->dbcfg.db);
+        xmlFree(cfg->shipgate_cert);
+        xmlFree(cfg->shipgate_key);
+        xmlFree(cfg->shipgate_ca);
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->limits_file);
 

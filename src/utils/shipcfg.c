@@ -46,17 +46,18 @@ static const char language_codes[LANGUAGE_CODE_COUNT][3] = {
 };
 
 static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
-    xmlChar *ip, *port;
+    xmlChar *ip, *port, *ca;
     int rv;
     unsigned long rv2;
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"ip");
     port = xmlGetProp(n, XC"port");
+    ca = xmlGetProp(n, XC"ca");
 
-    /* Make sure we have both of them... */
-    if(!ip || !port) {
-        debug(DBG_ERROR, "IP or port not given for shipgate\n");
+    /* Make sure we have all of them... */
+    if(!ip || !port || !ca) {
+        debug(DBG_ERROR, "IP, port, or CA not given for shipgate\n");
         rv = -1;
         goto err;
     }
@@ -85,11 +86,17 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     }
 
     cfg->shipgate_port = (uint16_t)rv2;
+    cfg->shipgate_ca = ca;
     rv = 0;
 
 err:
     xmlFree(ip);
     xmlFree(port);
+
+    if(rv) {
+        xmlFree(ca);
+    }
+
     return rv;
 }
 
@@ -651,7 +658,7 @@ err:
 }
 
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *name, *blocks, *key, *gms, *menu, *gmonly;
+    xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
     int rv;
     unsigned long rv2;
     xmlNode *n2;
@@ -663,8 +670,9 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     gms = xmlGetProp(n, XC"gms");
     menu = xmlGetProp(n, XC"menu");
     gmonly = xmlGetProp(n, XC"gmonly");
+    cert = xmlGetProp(n, XC"cert");
 
-    if(!name || !blocks || !key || !gms || !gmonly || !menu) {
+    if(!name || !blocks || !key || !gms || !gmonly || !menu || !cert) {
         debug(DBG_ERROR, "Required attribute of ship not found\n");
         rv = -1;
         goto err;
@@ -672,7 +680,8 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Copy out the strings out that we need */
     cur->name = (char *)name;
-    cur->key_file = (char *)key;
+    cur->ship_key = (char *)key;
+    cur->ship_cert = (char *)cert;
     cur->gm_file = (char *)gms;
 
     /* Copy out the gmonly flag */
@@ -934,13 +943,15 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         }
 
         xmlFree(cfg->name);
-        xmlFree(cfg->key_file);
         xmlFree(cfg->gm_file);
         xmlFree(cfg->limits_file);
         xmlFree(cfg->quests_file);
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->bans_file);
         xmlFree(cfg->scripts_file);
+        xmlFree(cfg->shipgate_ca);
+        xmlFree(cfg->ship_key);
+        xmlFree(cfg->ship_cert);
     
         free(cfg->events);
 
