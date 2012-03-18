@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -46,34 +46,49 @@ static const char language_codes[LANGUAGE_CODE_COUNT][3] = {
 };
 
 static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
-    xmlChar *ip, *port, *ca;
+    xmlChar *ip, *port, *ca, *addr;
     int rv;
     unsigned long rv2;
+    uint32_t ip4;
+    uint8_t ip6[16];
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"ip");
     port = xmlGetProp(n, XC"port");
     ca = xmlGetProp(n, XC"ca");
+    addr = xmlGetProp(n, XC"addr");
 
     /* Make sure we have all of them... */
-    if(!ip || !port || !ca) {
-        debug(DBG_ERROR, "IP, port, or CA not given for shipgate\n");
+    if(!port || !ca) {
+        debug(DBG_ERROR, "port or CA not given for shipgate\n");
         rv = -1;
         goto err;
     }
+    else if((addr && ip) || (!addr && !ip)) {
+        debug(DBG_ERROR, "You must provide ONE of ip or addr for shipgate\n");
+        rv = -4;
+        goto err;
+    }
 
-    /* Parse the IP address out */
-    rv = inet_pton(AF_INET, (char *)ip, &cfg->shipgate_ip);
-
-    if(rv < 1) {
-        rv = inet_pton(AF_INET6, (char *)ip, cfg->shipgate_ip6);
+    /* Parse the address address out */
+    if(addr) {
+        cfg->shipgate_host = addr;
+    }
+    else if(ip) {
+        rv = inet_pton(AF_INET, (char *)ip, &ip4);
 
         if(rv < 1) {
-            debug(DBG_ERROR, "Invalid IP address given for shipgate: %s\n",
-                  (char *)ip);
-            rv = -2;
-            goto err;
+            rv = inet_pton(AF_INET6, (char *)ip, ip6);
+
+            if(rv < 1) {
+                debug(DBG_ERROR, "Invalid IP address given for shipgate: %s\n",
+                      (char *)ip);
+                rv = -2;
+                goto err;
+            }
         }
+
+        cfg->shipgate_host = ip;
     }
 
     /* Parse the port out */
@@ -90,41 +105,63 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     rv = 0;
 
 err:
-    xmlFree(ip);
     xmlFree(port);
 
     if(rv) {
+        xmlFree(ip);
         xmlFree(ca);
+        xmlFree(addr);
     }
 
     return rv;
 }
 
 static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *ip, *port, *ip6;
+    xmlChar *ip, *port, *ip6, *addr, *addr6;
     int rv;
     unsigned long rv2;
+    uint32_t tmpip4;
+    uint8_t tmpip6[16];
 
     /* Grab the attributes of the tag. */
     ip = xmlGetProp(n, XC"ip");
     port = xmlGetProp(n, XC"port");
     ip6 = xmlGetProp(n, XC"ip6");
+    addr = xmlGetProp(n, XC"addr");
+    addr6 = xmlGetProp(n, XC"addr6");
 
     /* Make sure we have both of the required ones... */
-    if(!ip || !port) {
-        debug(DBG_ERROR, "IPv4 Address or port not given for ship\n");
+    if(!port) {
+        debug(DBG_ERROR, "Port not given for ship\n");
         rv = -1;
+        goto err;
+    }
+    else if((ip && addr) || (!ip && !addr)) {
+        debug(DBG_ERROR, "Must give ONE of IPv4 or addr for ship\n");
+        rv = -4;
+        goto err;
+    }
+    else if(ip6 && addr6) {
+        debug(DBG_ERROR, "Cannot give both ip6 and addr6 for ship\n");
+        rv = -5;
         goto err;
     }
 
     /* Parse the IP address out */
-    rv = inet_pton(AF_INET, (char *)ip, &cur->ship_ip);
+    if(ip) {
+        rv = inet_pton(AF_INET, (char *)ip, &tmpip4);
 
-    if(rv < 1) {
-        debug(DBG_ERROR, "Invalid IPv4 address given for ship: %s\n",
-              (char *)ip);
-        rv = -2;
-        goto err;
+        if(rv < 1) {
+            debug(DBG_ERROR, "Invalid IPv4 address given for ship: %s\n",
+                  (char *)ip);
+            rv = -2;
+            goto err;
+        }
+
+        cur->ship_host = (char *)ip;
+    }
+    else {
+        cur->ship_host = (char *)addr;
     }
 
     /* Parse the port out */
@@ -140,13 +177,19 @@ static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
 
     /* See if we have a configured IPv6 address */
     if(ip6) {
-        rv = inet_pton(AF_INET6, (char *)ip6, cur->ship_ip6);
+        rv = inet_pton(AF_INET6, (char *)ip6, tmpip6);
 
-        /* This isn't actually fatal, for now, anyway. */
         if(rv < 1) {
             debug(DBG_WARN, "Invalid IPv6 address given for ship: %s\n",
                   (char *)ip6);
+            rv = -6;
+            goto err;
         }
+
+        cur->ship_host6 = (char *)ip6;
+    }
+    else {
+        cur->ship_host6 = (char *)addr6;
     }
 
     rv = 0;
@@ -155,6 +198,14 @@ err:
     xmlFree(ip);
     xmlFree(port);
     xmlFree(ip6);
+
+    if(rv) {
+        xmlFree(ip);
+        xmlFree(ip6);
+        xmlFree(addr);
+        xmlFree(addr6);
+    }
+
     return rv;
 }
 
@@ -657,6 +708,34 @@ err:
     return rv;
 }
 
+static int handle_bbparam(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->bb_param_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed bbparam tag, no dir given\n");
+    return -1;
+}
+
+static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->bb_map_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed bbmaps tag, no dir given\n");
+    return -1;
+}
+
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
     int rv;
@@ -777,6 +856,18 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"events")) {
             if(handle_events(n2, cur)) {
                 rv = -12;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"bbparam")) {
+            if(handle_bbparam(n2, cur)) {
+                rv = -13;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"bbmaps")) {
+            if(handle_bbmaps(n2, cur)) {
+                rv = -14;
                 goto err;
             }
         }
@@ -952,6 +1043,11 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->shipgate_ca);
         xmlFree(cfg->ship_key);
         xmlFree(cfg->ship_cert);
+        xmlFree(cfg->bb_param_dir);
+        xmlFree(cfg->bb_map_dir);
+        xmlFree(cfg->shipgate_host);
+        xmlFree(cfg->ship_host);
+        xmlFree(cfg->ship_host6);
     
         free(cfg->events);
 

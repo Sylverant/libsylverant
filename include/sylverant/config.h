@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -94,8 +94,7 @@ typedef struct sylverant_event {
 } sylverant_event_t;
 
 typedef struct sylverant_shipcfg {
-    uint32_t shipgate_ip;
-    uint8_t shipgate_ip6[16];
+    char *shipgate_host;
     uint16_t shipgate_port;
 
     char *name;
@@ -109,10 +108,12 @@ typedef struct sylverant_shipcfg {
     char *quests_dir;
     char *bans_file;
     char *scripts_file;
+    char *bb_param_dir;
+    char *bb_map_dir;
     sylverant_event_t *events;
 
-    uint32_t ship_ip;
-    uint8_t ship_ip6[16];
+    char *ship_host;
+    char *ship_host6;
     uint32_t shipgate_flags;
 
     uint16_t base_port;
