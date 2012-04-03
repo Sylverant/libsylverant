@@ -1005,6 +1005,7 @@ err_doc:
     xmlFreeDoc(doc);
 err_cxt:
     xmlFreeParserCtxt(cxt);
+    xmlCleanupParser();
 
 err:
     if(irv && irv > -7) {
