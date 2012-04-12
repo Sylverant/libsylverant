@@ -736,6 +736,14 @@ static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
     return -1;
 }
 
+static int handle_itempt(xmlNode *n, sylverant_ship_t *cur) {
+    /* Grab the ptdata filenames */
+    cur->v2_ptdata_file = (char *)xmlGetProp(n, XC"v2");
+    cur->v3_ptdata_file = (char *)xmlGetProp(n, XC"v3");
+
+    return 0;
+}
+
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
     int rv;
@@ -868,6 +876,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"bbmaps")) {
             if(handle_bbmaps(n2, cur)) {
                 rv = -14;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"itempt")) {
+            if(handle_itempt(n2, cur)) {
+                rv = -15;
                 goto err;
             }
         }
@@ -1049,6 +1063,8 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->shipgate_host);
         xmlFree(cfg->ship_host);
         xmlFree(cfg->ship_host6);
+        xmlFree(cfg->v2_ptdata_file);
+        xmlFree(cfg->v3_ptdata_file);
     
         free(cfg->events);
 
