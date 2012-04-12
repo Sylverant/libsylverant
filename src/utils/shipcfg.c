@@ -195,9 +195,7 @@ static int handle_net(xmlNode *n, sylverant_ship_t *cur) {
     rv = 0;
 
 err:
-    xmlFree(ip);
     xmlFree(port);
-    xmlFree(ip6);
 
     if(rv) {
         xmlFree(ip);
