@@ -742,6 +742,20 @@ static int handle_itempt(xmlNode *n, sylverant_ship_t *cur) {
     return 0;
 }
 
+static int handle_v2maps(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->v2_map_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed v2maps tag, no dir given\n");
+    return -1;
+}
+
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
     int rv;
@@ -880,6 +894,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"itempt")) {
             if(handle_itempt(n2, cur)) {
                 rv = -15;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"v2maps")) {
+            if(handle_v2maps(n2, cur)) {
+                rv = -16;
                 goto err;
             }
         }
@@ -1058,6 +1078,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->ship_cert);
         xmlFree(cfg->bb_param_dir);
         xmlFree(cfg->bb_map_dir);
+        xmlFree(cfg->v2_map_dir);
         xmlFree(cfg->shipgate_host);
         xmlFree(cfg->ship_host);
         xmlFree(cfg->ship_host6);
