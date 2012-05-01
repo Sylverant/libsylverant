@@ -735,7 +735,7 @@ static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_itempt(xmlNode *n, sylverant_ship_t *cur) {
-    /* Grab the ptdata filenames */
+    /* Grab the pmtdata filenames */
     cur->v2_ptdata_file = (char *)xmlGetProp(n, XC"v2");
     cur->v3_ptdata_file = (char *)xmlGetProp(n, XC"v3");
 
@@ -754,6 +754,14 @@ static int handle_v2maps(xmlNode *n, sylverant_ship_t *cur) {
     /* If we don't have it, report the error */
     debug(DBG_ERROR, "Malformed v2maps tag, no dir given\n");
     return -1;
+}
+
+static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
+    /* Grab the pmtdata filenames */
+    cur->v2_pmtdata_file = (char *)xmlGetProp(n, XC"v2");
+    cur->v3_pmtdata_file = (char *)xmlGetProp(n, XC"v3");
+
+    return 0;
 }
 
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
@@ -900,6 +908,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"v2maps")) {
             if(handle_v2maps(n2, cur)) {
                 rv = -16;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"itempmt")) {
+            if(handle_itempmt(n2, cur)) {
+                rv = -17;
                 goto err;
             }
         }
@@ -1084,6 +1098,8 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->ship_host6);
         xmlFree(cfg->v2_ptdata_file);
         xmlFree(cfg->v3_ptdata_file);
+        xmlFree(cfg->v2_pmtdata_file);
+        xmlFree(cfg->v3_pmtdata_file);
     
         free(cfg->events);
 

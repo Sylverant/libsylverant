@@ -113,6 +113,8 @@ typedef struct sylverant_shipcfg {
     char *v2_map_dir;
     char *v2_ptdata_file;
     char *v3_ptdata_file;
+    char *v2_pmtdata_file;
+    char *v3_pmtdata_file;
     sylverant_event_t *events;
 
     char *ship_host;
