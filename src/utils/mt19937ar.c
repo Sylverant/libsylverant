@@ -1,3 +1,13 @@
+/*
+   Modified version Copyright (C) 2012 Lawrence Sebald
+
+   This modified version encapsulates the MT19937 state in a structure to allow
+   for multiple parallel streams. The original functions are supported by way of
+   a global state structure.
+
+   Modified version released under the same license as the original work.
+*/
+
 /* 
    A C-program for MT19937, with initialization improved 2002/1/26.
    Coded by Takuji Nishimura and Makoto Matsumoto.
@@ -44,91 +54,84 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "sylverant/mtwist.h"
 
 /* Period parameters */  
-#define N 624
+#define N MT19937_N
 #define M 397
 #define MATRIX_A 0x9908b0dfUL   /* constant vector a */
 #define UPPER_MASK 0x80000000UL /* most significant w-r bits */
 #define LOWER_MASK 0x7fffffffUL /* least significant r bits */
 
-static unsigned long mt[N]; /* the array for the state vector  */
-static int mti=N+1; /* mti==N+1 means mt[N] is not initialized */
+static struct mt19937_state *gstate = NULL;
 
-/* initializes mt[N] with a seed */
-void init_genrand(unsigned long s)
-{
-    mt[0]= s & 0xffffffffUL;
-    for (mti=1; mti<N; mti++) {
-        mt[mti] = 
-	    (1812433253UL * (mt[mti-1] ^ (mt[mti-1] >> 30)) + mti); 
+void mt19937_init(struct mt19937_state *rng, uint32_t s) {
+    rng->mt[0]= s & 0xffffffffUL;
+    for (rng->mti=1; rng->mti<N; rng->mti++) {
+        rng->mt[rng->mti] = 
+	    (1812433253UL * (rng->mt[rng->mti-1] ^
+                         (rng->mt[rng->mti-1] >> 30)) + rng->mti); 
         /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
         /* In the previous versions, MSBs of the seed affect   */
         /* only MSBs of the array mt[].                        */
         /* 2002/01/09 modified by Makoto Matsumoto             */
-        mt[mti] &= 0xffffffffUL;
+        rng->mt[rng->mti] &= 0xffffffffUL;
         /* for >32 bit machines */
     }
 }
 
-/* initialize by an array with array-length */
-/* init_key is the array for initializing keys */
-/* key_length is its length */
-/* slight change for C++, 2004/2/26 */
-void init_by_array(unsigned long init_key[], int key_length)
-{
+void mt19937_init_array(struct mt19937_state *rng, uint32_t a[], int len) {
     int i, j, k;
-    init_genrand(19650218UL);
+
+    mt19937_init(rng, 19650218UL);
+
     i=1; j=0;
-    k = (N>key_length ? N : key_length);
+    k = (N>len ? N : len);
     for (; k; k--) {
-        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 30)) * 1664525UL))
-          + init_key[j] + j; /* non linear */
-        mt[i] &= 0xffffffffUL; /* for WORDSIZE > 32 machines */
+        rng->mt[i] = (rng->mt[i] ^ ((rng->mt[i-1]
+            ^ (rng->mt[i-1] >> 30)) * 1664525UL))
+            + a[j] + j; /* non linear */
+        rng->mt[i] &= 0xffffffffUL; /* for WORDSIZE > 32 machines */
         i++; j++;
-        if (i>=N) { mt[0] = mt[N-1]; i=1; }
-        if (j>=key_length) j=0;
+        if (i>=N) { rng->mt[0] = rng->mt[N-1]; i=1; }
+        if (j>=len) j=0;
     }
     for (k=N-1; k; k--) {
-        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 30)) * 1566083941UL))
-          - i; /* non linear */
-        mt[i] &= 0xffffffffUL; /* for WORDSIZE > 32 machines */
+        rng->mt[i] = (rng->mt[i] ^ ((rng->mt[i-1]
+            ^ (rng->mt[i-1] >> 30)) * 1566083941UL))
+            - i; /* non linear */
+        rng->mt[i] &= 0xffffffffUL; /* for WORDSIZE > 32 machines */
         i++;
-        if (i>=N) { mt[0] = mt[N-1]; i=1; }
+        if (i>=N) { rng->mt[0] = rng->mt[N-1]; i=1; }
     }
 
-    mt[0] = 0x80000000UL; /* MSB is 1; assuring non-zero initial array */ 
+    rng->mt[0] = 0x80000000UL; /* MSB is 1; assuring non-zero initial array */ 
 }
 
-/* generates a random number on [0,0xffffffff]-interval */
-unsigned long genrand_int32(void)
-{
-    unsigned long y;
-    static unsigned long mag01[2]={0x0UL, MATRIX_A};
+uint32_t mt19937_genrand_int32(struct mt19937_state *rng) {
+    uint32_t y;
+    uint32_t mag01[2]={0x0UL, MATRIX_A};
     /* mag01[x] = x * MATRIX_A  for x=0,1 */
 
-    if (mti >= N) { /* generate N words at one time */
+    if (rng->mti >= N) { /* generate N words at one time */
         int kk;
 
-        if (mti == N+1)   /* if init_genrand() has not been called, */
-            init_genrand(5489UL); /* a default initial seed is used */
-
         for (kk=0;kk<N-M;kk++) {
-            y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
-            mt[kk] = mt[kk+M] ^ (y >> 1) ^ mag01[y & 0x1UL];
+            y = (rng->mt[kk]&UPPER_MASK)|(rng->mt[kk+1]&LOWER_MASK);
+            rng->mt[kk] = rng->mt[kk+M] ^ (y >> 1) ^ mag01[y & 0x1UL];
         }
         for (;kk<N-1;kk++) {
-            y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
-            mt[kk] = mt[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1UL];
+            y = (rng->mt[kk]&UPPER_MASK)|(rng->mt[kk+1]&LOWER_MASK);
+            rng->mt[kk] = rng->mt[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1UL];
         }
-        y = (mt[N-1]&UPPER_MASK)|(mt[0]&LOWER_MASK);
-        mt[N-1] = mt[M-1] ^ (y >> 1) ^ mag01[y & 0x1UL];
+        y = (rng->mt[N-1]&UPPER_MASK)|(rng->mt[0]&LOWER_MASK);
+        rng->mt[N-1] = rng->mt[M-1] ^ (y >> 1) ^ mag01[y & 0x1UL];
 
-        mti = 0;
+        rng->mti = 0;
     }
-  
-    y = mt[mti++];
+
+    y = rng->mt[rng->mti++];
 
     /* Tempering */
     y ^= (y >> 11);
@@ -139,10 +142,80 @@ unsigned long genrand_int32(void)
     return y;
 }
 
-/* generates a random number on [0,0x7fffffff]-interval */
-long genrand_int31(void)
+int32_t mt19937_genrand_int31(struct mt19937_state *rng) {
+    return (int32_t)(mt19937_genrand_int32(rng) >> 1);
+}
+
+double mt19937_genrand_real1(struct mt19937_state *rng) {
+    return mt19937_genrand_int32(rng) * (1.0 / 4294967295.0); 
+}
+
+double mt19937_genrand_real2(struct mt19937_state *rng) {
+    return mt19937_genrand_int32(rng) * (1.0 / 4294967296.0); 
+}
+
+double mt19937_genrand_real3(struct mt19937_state *rng) {
+    return (((double)mt19937_genrand_int32(rng)) + 0.5) * (1.0 / 4294967296.0); 
+}
+
+/* generates a random number on [0,1) with 53-bit resolution*/
+double mt19937_genrand_res53(struct mt19937_state *rng) { 
+    uint32_t a = mt19937_genrand_int32(rng) >> 5;
+    uint32_t b = mt19937_genrand_int32(rng) >> 6; 
+    return (a * 67108864.0 + b) * (1.0 / 9007199254740992.0); 
+} 
+
+/* initializes mt[N] with a seed */
+int init_genrand(uint32_t s)
 {
-    return (long)(genrand_int32()>>1);
+    if (!gstate) {
+        gstate = (struct mt19937_state *)malloc(sizeof(struct mt19937_state));
+        if (!gstate)
+            return -1;
+    }
+
+    mt19937_init(gstate, s);
+
+    return 0;
+}
+
+/* initialize by an array with array-length */
+/* init_key is the array for initializing keys */
+/* key_length is its length */
+/* slight change for C++, 2004/2/26 */
+int init_by_array(uint32_t init_key[], int key_length)
+{
+    if (!gstate) {
+        gstate = (struct mt19937_state *)malloc(sizeof(struct mt19937_state));
+        if (!gstate)
+            return -1;
+    }
+
+    mt19937_init_array(gstate, init_key, key_length);
+
+    return 0;
+}
+
+/* cleans up the initialized state */
+void cleanup_genrand(void) {
+    free(gstate);
+    gstate = NULL;
+}
+
+/* generates a random number on [0,0xffffffff]-interval */
+uint32_t genrand_int32(void)
+{
+    if (!gstate)   /* if init_genrand() has not been called, */
+        init_genrand(5489UL); /* a default initial seed is used */
+
+    if (!gstate)   /* if the state doesn't initialize, what to do? */
+        return (uint32_t)-1;
+}
+
+/* generates a random number on [0,0x7fffffff]-interval */
+int32_t genrand_int31(void)
+{
+    return (int32_t)(genrand_int32()>>1);
 }
 
 /* generates a random number on [0,1]-real-interval */
@@ -169,7 +242,7 @@ double genrand_real3(void)
 /* generates a random number on [0,1) with 53-bit resolution*/
 double genrand_res53(void) 
 { 
-    unsigned long a=genrand_int32()>>5, b=genrand_int32()>>6; 
+    uint32_t a=genrand_int32()>>5, b=genrand_int32()>>6; 
     return(a*67108864.0+b)*(1.0/9007199254740992.0); 
-} 
+}
 /* These real versions are due to Isaku Wada, 2002/01/09 added */

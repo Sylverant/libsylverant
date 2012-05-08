@@ -1,3 +1,16 @@
+/*
+   Modified version Copyright (C) 2012 Lawrence Sebald
+
+   This modified version encapsulates the MT19937 state in a structure to allow
+   for multiple parallel streams. The original functions are supported by way of
+   a global state structure, which is initialized on-demand.
+
+   Also, this version uses the standard types defined in <stdint.h>, rather than
+   assuming that unsigned long is 32-bits, as the original work does.
+
+   Modified version released under the same license as the original work.
+*/
+
 /* 
    A C-program for MT19937, with initialization improved 2002/1/26.
    Coded by Takuji Nishimura and Makoto Matsumoto.
@@ -46,20 +59,35 @@
 #ifndef SYLVERANT__MTWIST_H
 #define SYLVERANT__MTWIST_H
 
+#include <stdint.h>
+
+#define MT19937_N   624
+
+/* State structure type */
+struct mt19937_state {
+    int mti;
+    uint32_t mt[MT19937_N];
+};
+
 /* initializes mt[N] with a seed */
-void init_genrand(unsigned long s);
+/* Modified version, returns -1 on error */
+int init_genrand(uint32_t s);
 
 /* initialize by an array with array-length */
 /* init_key is the array for initializing keys */
 /* key_length is its length */
 /* slight change for C++, 2004/2/26 */
-void init_by_array(unsigned long init_key[], int key_length);
+/* Modified version, returns -1 on error */
+int init_by_array(uint32_t init_key[], int key_length);
+
+/* cleans up the global state */
+void cleanup_genrand(void);
 
 /* generates a random number on [0,0xffffffff]-interval */
-unsigned long genrand_int32(void);
+uint32_t genrand_int32(void);
 
 /* generates a random number on [0,0x7fffffff]-interval */
-long genrand_int31(void);
+int32_t genrand_int31(void);
 
 /* These real versions are due to Isaku Wada, 2002/01/09 added */
 /* generates a random number on [0,1]-real-interval */
@@ -73,5 +101,18 @@ double genrand_real3(void);
 
 /* generates a random number on [0,1) with 53-bit resolution*/
 double genrand_res53(void);
+
+/* New functions below... */
+void mt19937_init(struct mt19937_state *rng, uint32_t s);
+void mt19937_init_array(struct mt19937_state *rng, uint32_t a[], int len);
+
+/* These all work the same as the ones up above, but with the specified state
+   object. */
+uint32_t mt19937_genrand_int32(struct mt19937_state *rng);
+int32_t mt19937_genrand_int31(struct mt19937_state *rng);
+double mt19937_genrand_real1(struct mt19937_state *rng);
+double mt19937_genrand_real2(struct mt19937_state *rng);
+double mt19937_genrand_real3(struct mt19937_state *rng);
+double mt19937_genrand_res53(struct mt19937_state *rng);
 
 #endif /* !SYLVERANT__MTWIST_H */
