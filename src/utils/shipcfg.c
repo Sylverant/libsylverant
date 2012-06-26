@@ -735,7 +735,7 @@ static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_itempt(xmlNode *n, sylverant_ship_t *cur) {
-    /* Grab the pmtdata filenames */
+    /* Grab the ptdata filenames */
     cur->v2_ptdata_file = (char *)xmlGetProp(n, XC"v2");
     cur->v3_ptdata_file = (char *)xmlGetProp(n, XC"v3");
 
@@ -757,9 +757,36 @@ static int handle_v2maps(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *limit;
+
     /* Grab the pmtdata filenames */
     cur->v2_pmtdata_file = (char *)xmlGetProp(n, XC"v2");
     cur->v3_pmtdata_file = (char *)xmlGetProp(n, XC"v3");
+
+    /* See if we're supposed to cap unit +/- values like the client does... */
+    limit = xmlGetProp(n, XC"limitv2units");
+
+    if(!limit || !xmlStrcmp(limit, "true")) {
+        cur->v2_pmt_limitunits = 1;
+    }
+
+    xmlFree(limit);
+
+    limit = xmlGetProp(n, XC"limitv3units");
+
+    if(!limit || !xmlStrcmp(limit, "true")) {
+        cur->v3_pmt_limitunits = 1;
+    }
+
+    xmlFree(limit);
+
+    return 0;
+}
+
+static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
+    /* Grab the rtdata filenames */
+    cur->v2_rtdata_file = (char *)xmlGetProp(n, XC"v2");
+    cur->v3_rtdata_file = (char *)xmlGetProp(n, XC"v3");
 
     return 0;
 }
@@ -914,6 +941,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"itempmt")) {
             if(handle_itempmt(n2, cur)) {
                 rv = -17;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"itemrt")) {
+            if(handle_itemrt(n2, cur)) {
+                rv = -18;
                 goto err;
             }
         }
@@ -1100,6 +1133,8 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->v3_ptdata_file);
         xmlFree(cfg->v2_pmtdata_file);
         xmlFree(cfg->v3_pmtdata_file);
+        xmlFree(cfg->v2_rtdata_file);
+        xmlFree(cfg->v3_rtdata_file);
     
         free(cfg->events);
 

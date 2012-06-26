@@ -115,12 +115,16 @@ typedef struct sylverant_shipcfg {
     char *v3_ptdata_file;
     char *v2_pmtdata_file;
     char *v3_pmtdata_file;
+    char *v2_rtdata_file;
+    char *v3_rtdata_file;
     sylverant_event_t *events;
 
     char *ship_host;
     char *ship_host6;
     uint32_t shipgate_flags;
 
+    uint8_t v2_pmt_limitunits;
+    uint8_t v3_pmt_limitunits;
     uint16_t base_port;
     uint16_t menu_code;
 
