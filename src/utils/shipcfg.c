@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -766,17 +766,15 @@ static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
     /* See if we're supposed to cap unit +/- values like the client does... */
     limit = xmlGetProp(n, XC"limitv2units");
 
-    if(!limit || !xmlStrcmp(limit, "true")) {
-        cur->v2_pmt_limitunits = 1;
-    }
+    if(!limit || !xmlStrcmp(limit, "true"))
+        cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITV2;
 
     xmlFree(limit);
 
     limit = xmlGetProp(n, XC"limitv3units");
 
-    if(!limit || !xmlStrcmp(limit, "true")) {
-        cur->v3_pmt_limitunits = 1;
-    }
+    if(!limit || !xmlStrcmp(limit, "true"))
+        cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITV3;
 
     xmlFree(limit);
 
@@ -784,9 +782,17 @@ static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *quest;
+
     /* Grab the rtdata filenames */
     cur->v2_rtdata_file = (char *)xmlGetProp(n, XC"v2");
     cur->v3_rtdata_file = (char *)xmlGetProp(n, XC"v3");
+
+    /* See if we're supposed to disable quest rares globally. */
+    if((quest = xmlGetProp(n, XC"questrares")) && !xmlStrcmp(quest, "true"))
+        cur->local_flags |= SYLVERANT_SHIP_QUEST_RARES;
+
+    xmlFree(quest);
 
     return 0;
 }

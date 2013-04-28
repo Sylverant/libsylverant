@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -53,6 +53,11 @@ extern const char sylverant_ship_cfg[];
 #define SYLVERANT_INFO_CH_SIMP  0x00000020
 #define SYLVERANT_INFO_CH_TRAD  0x00000040
 #define SYLVERANT_INFO_KOREAN   0x00000080
+
+/* Flags for the local_flags of a ship. */
+#define SYLVERANT_SHIP_PMT_LIMITV2  0x00000001
+#define SYLVERANT_SHIP_PMT_LIMITV3  0x00000002
+#define SYLVERANT_SHIP_QUEST_RARES  0x00000004
 
 typedef struct sylverant_dbconfig {
     char *type;
@@ -122,9 +127,8 @@ typedef struct sylverant_shipcfg {
     char *ship_host;
     char *ship_host6;
     uint32_t shipgate_flags;
+    uint32_t local_flags;
 
-    uint8_t v2_pmt_limitunits;
-    uint8_t v3_pmt_limitunits;
     uint16_t base_port;
     uint16_t menu_code;
 
