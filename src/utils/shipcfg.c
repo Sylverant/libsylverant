@@ -788,9 +788,16 @@ static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
     cur->v2_rtdata_file = (char *)xmlGetProp(n, XC"v2");
     cur->v3_rtdata_file = (char *)xmlGetProp(n, XC"v3");
 
+    quest = xmlGetProp(n, XC"questrares");
+
     /* See if we're supposed to disable quest rares globally. */
-    if((quest = xmlGetProp(n, XC"questrares")) && !xmlStrcmp(quest, "true"))
-        cur->local_flags |= SYLVERANT_SHIP_QUEST_RARES;
+    if(quest) {
+        if(!xmlStrcmp(quest, "true"))
+            cur->local_flags |= SYLVERANT_SHIP_QUEST_RARES |
+                SYLVERANT_SHIP_QUEST_SRARES;
+        else if(!xmlStrcmp(quest, "partial"))
+            cur->local_flags |= SYLVERANT_SHIP_QUEST_SRARES;
+    }
 
     xmlFree(quest);
 

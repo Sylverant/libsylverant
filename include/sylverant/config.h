@@ -58,6 +58,7 @@ extern const char sylverant_ship_cfg[];
 #define SYLVERANT_SHIP_PMT_LIMITV2  0x00000001
 #define SYLVERANT_SHIP_PMT_LIMITV3  0x00000002
 #define SYLVERANT_SHIP_QUEST_RARES  0x00000004
+#define SYLVERANT_SHIP_QUEST_SRARES 0x00000008
 
 typedef struct sylverant_dbconfig {
     char *type;
