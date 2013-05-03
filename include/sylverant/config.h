@@ -56,9 +56,10 @@ extern const char sylverant_ship_cfg[];
 
 /* Flags for the local_flags of a ship. */
 #define SYLVERANT_SHIP_PMT_LIMITV2  0x00000001
-#define SYLVERANT_SHIP_PMT_LIMITV3  0x00000002
+#define SYLVERANT_SHIP_PMT_LIMITGC  0x00000002
 #define SYLVERANT_SHIP_QUEST_RARES  0x00000004
 #define SYLVERANT_SHIP_QUEST_SRARES 0x00000008
+#define SYLVERANT_SHIP_PMT_LIMITBB  0x00000010
 
 typedef struct sylverant_dbconfig {
     char *type;
@@ -118,11 +119,14 @@ typedef struct sylverant_shipcfg {
     char *bb_map_dir;
     char *v2_map_dir;
     char *v2_ptdata_file;
-    char *v3_ptdata_file;
+    char *gc_ptdata_file;
+    char *bb_ptdata_file;
     char *v2_pmtdata_file;
-    char *v3_pmtdata_file;
+    char *gc_pmtdata_file;
+    char *bb_pmtdata_file;
     char *v2_rtdata_file;
-    char *v3_rtdata_file;
+    char *gc_rtdata_file;
+    char *bb_rtdata_file;
     sylverant_event_t *events;
 
     char *ship_host;

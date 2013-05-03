@@ -737,7 +737,8 @@ static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
 static int handle_itempt(xmlNode *n, sylverant_ship_t *cur) {
     /* Grab the ptdata filenames */
     cur->v2_ptdata_file = (char *)xmlGetProp(n, XC"v2");
-    cur->v3_ptdata_file = (char *)xmlGetProp(n, XC"v3");
+    cur->gc_ptdata_file = (char *)xmlGetProp(n, XC"gc");
+    cur->bb_ptdata_file = (char *)xmlGetProp(n, XC"bb");
 
     return 0;
 }
@@ -761,20 +762,25 @@ static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Grab the pmtdata filenames */
     cur->v2_pmtdata_file = (char *)xmlGetProp(n, XC"v2");
-    cur->v3_pmtdata_file = (char *)xmlGetProp(n, XC"v3");
+    cur->gc_pmtdata_file = (char *)xmlGetProp(n, XC"gc");
+    cur->bb_pmtdata_file = (char *)xmlGetProp(n, XC"bb");
 
     /* See if we're supposed to cap unit +/- values like the client does... */
     limit = xmlGetProp(n, XC"limitv2units");
-
     if(!limit || !xmlStrcmp(limit, "true"))
         cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITV2;
 
     xmlFree(limit);
 
-    limit = xmlGetProp(n, XC"limitv3units");
-
+    limit = xmlGetProp(n, XC"limitgcunits");
     if(!limit || !xmlStrcmp(limit, "true"))
-        cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITV3;
+        cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITGC;
+
+    xmlFree(limit);
+
+    limit = xmlGetProp(n, XC"limitbbunits");
+    if(!limit || !xmlStrcmp(limit, "true"))
+        cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITBB;
 
     xmlFree(limit);
 
@@ -786,7 +792,8 @@ static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Grab the rtdata filenames */
     cur->v2_rtdata_file = (char *)xmlGetProp(n, XC"v2");
-    cur->v3_rtdata_file = (char *)xmlGetProp(n, XC"v3");
+    cur->gc_rtdata_file = (char *)xmlGetProp(n, XC"gc");
+    cur->bb_rtdata_file = (char *)xmlGetProp(n, XC"bb");
 
     quest = xmlGetProp(n, XC"questrares");
 
@@ -1143,11 +1150,14 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->ship_host);
         xmlFree(cfg->ship_host6);
         xmlFree(cfg->v2_ptdata_file);
-        xmlFree(cfg->v3_ptdata_file);
+        xmlFree(cfg->gc_ptdata_file);
+        xmlFree(cfg->bb_ptdata_file);
         xmlFree(cfg->v2_pmtdata_file);
-        xmlFree(cfg->v3_pmtdata_file);
+        xmlFree(cfg->gc_pmtdata_file);
+        xmlFree(cfg->bb_pmtdata_file);
         xmlFree(cfg->v2_rtdata_file);
-        xmlFree(cfg->v3_rtdata_file);
+        xmlFree(cfg->gc_rtdata_file);
+        xmlFree(cfg->bb_rtdata_file);
     
         free(cfg->events);
 
