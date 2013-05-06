@@ -118,6 +118,7 @@ typedef struct sylverant_shipcfg {
     char *bb_param_dir;
     char *bb_map_dir;
     char *v2_map_dir;
+    char *gc_map_dir;
     char *v2_ptdata_file;
     char *gc_ptdata_file;
     char *bb_ptdata_file;

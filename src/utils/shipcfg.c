@@ -757,6 +757,20 @@ static int handle_v2maps(xmlNode *n, sylverant_ship_t *cur) {
     return -1;
 }
 
+static int handle_gcmaps(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->gc_map_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed gcmaps tag, no dir given\n");
+    return -1;
+}
+
 static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *limit;
 
@@ -970,6 +984,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n2->name, XC"gcmaps")) {
+            if(handle_gcmaps(n2, cur)) {
+                rv = -19;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
                   n2->line);
@@ -1146,6 +1166,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->bb_param_dir);
         xmlFree(cfg->bb_map_dir);
         xmlFree(cfg->v2_map_dir);
+        xmlFree(cfg->gc_map_dir);
         xmlFree(cfg->shipgate_host);
         xmlFree(cfg->ship_host);
         xmlFree(cfg->ship_host6);
