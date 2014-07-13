@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -50,12 +50,181 @@ static int handle_short(xmlNode *n, sylverant_quest_t *q) {
 
     /* Grab the short description from the node */
     if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
-        strncpy(q->desc, desc, 111);
+        strncpy(q->desc, (const char *)desc, 111);
         q->desc[111] = '\0';
         xmlFree(desc);
     }
 
     return 0;
+}
+
+static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def) {
+    xmlChar *id, *type, *drops;
+    int rv = 0, count;
+    void *tmp;
+    uint32_t drop;
+    uint32_t num;
+    typedef struct sylverant_quest_enemy mon;
+
+    /* Grab the attributes we're expecting */
+    type = xmlGetProp(n, XC"type");
+    id = xmlGetProp(n, XC"id");
+    drops = xmlGetProp(n, XC"drops");
+
+    /* Make sure we have all of them... */
+    if((!type && !id) || !drops) {
+        debug(DBG_ERROR, "One or more required monster attributes missing %p %p %p\n", type, id, drops);
+        rv = -1;
+        goto err;
+    }
+    else if(type && id) {
+        debug(DBG_ERROR, "Cannot specify both id and type for monster\n");
+        rv = -2;
+        goto err;
+    }
+
+    /* Make sure the drops value is sane */
+    if(!xmlStrcmp(drops, XC"none")) {
+        drop = SYLVERANT_QUEST_ENDROP_NONE;
+    }
+    else if(!xmlStrcmp(drops, XC"norare")) {
+        drop = SYLVERANT_QUEST_ENDROP_NORARE;
+    }
+    else if(!xmlStrcmp(drops, XC"partial")) {
+        drop = SYLVERANT_QUEST_ENDROP_PARTIAL;
+    }
+    else if(!xmlStrcmp(drops, XC"free")) {
+        drop = SYLVERANT_QUEST_ENDROP_FREE;
+    }
+    else if(!xmlStrcmp(drops, XC"default")) {
+        drop = def;
+    }
+    else {
+        debug(DBG_ERROR, "Invalid monster drops: %s\n", (char *)drops);
+        rv = -3;
+        goto err;
+    }
+
+    /* Which definition did the user give us? */
+    if(type) {
+        /* Parse out the type number. */
+        errno = 0;
+        num = (uint32_t)strtoul((const char *)type, NULL, 0);
+        if(errno) {
+            debug(DBG_ERROR, "Error parsing monster type \"%s\": %s\n",
+                  (const char *)type, strerror(errno));
+            rv = -4;
+            goto err;
+        }
+
+        /* Make space for this type of enemy. */
+        count = q->num_monster_types + 1;
+
+        if(!(tmp = realloc(q->monster_types, count * sizeof(mon)))) {
+            debug(DBG_ERROR, "Error allocating monster types: %s\n",
+                  strerror(errno));
+            rv = -5;
+            goto err;
+        }
+
+        /* Save the new enemy type in the list. */
+        q->monster_types = (mon *)tmp;
+        q->monster_types[count - 1].key = num;
+        q->monster_types[count - 1].value = drop;
+        q->num_monster_types = count;
+    }
+    else {
+        /* Parse out the ID number. */
+        errno = 0;
+        num = (uint32_t)strtoul((const char *)id, NULL, 0);
+        if(errno) {
+            debug(DBG_ERROR, "Error parsing monster id \"%s\": %s\n",
+                  (const char *)id, strerror(errno));
+            rv = -6;
+            goto err;
+        }
+
+        /* Make space for this enemy. */
+        count = q->num_monster_ids + 1;
+
+        if(!(tmp = realloc(q->monster_ids, count * sizeof(mon)))) {
+            debug(DBG_ERROR, "Error allocating monster ids: %s\n",
+                  strerror(errno));
+            rv = -7;
+            goto err;
+        }
+
+        /* Save the new enemy in the list. */
+        q->monster_ids = (mon *)tmp;
+        q->monster_ids[count - 1].key = num;
+        q->monster_ids[count - 1].value = drop;
+        q->num_monster_ids = count;
+    }
+
+err:
+    xmlFree(type);
+    xmlFree(id);
+    xmlFree(drops);
+    return rv;
+}
+
+static int handle_drops(xmlNode *n, sylverant_quest_t *q) {
+    xmlChar *def;
+    int rv = 0;
+    uint32_t drop_def = SYLVERANT_QUEST_ENDROP_NORARE;
+
+    /* Grab the attribute we're expecting. */
+    def = xmlGetProp(n, XC"default");
+
+    if(!def) {
+        debug(DBG_ERROR, "<drops> tag missing default attribute.\n");
+        return -1;
+    }
+
+    /* Make sure the default value is sane */
+    if(!xmlStrcmp(def, XC"none")) {
+        drop_def = SYLVERANT_QUEST_ENDROP_NONE;
+    }
+    else if(!xmlStrcmp(def, XC"norare")) {
+        drop_def = SYLVERANT_QUEST_ENDROP_NORARE;
+    }
+    else if(!xmlStrcmp(def, XC"partial")) {
+        drop_def = SYLVERANT_QUEST_ENDROP_PARTIAL;
+    }
+    else if(!xmlStrcmp(def, XC"free")) {
+        drop_def = SYLVERANT_QUEST_ENDROP_FREE;
+    }
+    else {
+        debug(DBG_ERROR, "Invalid drops default: %s\n", (char *)def);
+        rv = -2;
+        goto err;
+    }
+
+    /* Now that we're done with that, deal with any children of the node */
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(!xmlStrcmp(n->name, XC"monster")) {
+            if(handle_monster(n, q, drop_def)) {
+                rv = -3;
+                goto err;
+            }
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
+                  n->line);
+        }
+
+        n = n->next;
+    }
+
+err:
+    xmlFree(def);
+    return rv;
 }
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
@@ -84,15 +253,14 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     maxpl = xmlGetProp(n, XC"maxpl");
 
     /* Make sure we have all of them... */
-    if(!name || !prefix || !v1 || !v2 || !gc || !bb || !ep || !event || !fmt ||
-       !id) {
+    if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
         debug(DBG_ERROR, "One or more required quest attributes missing\n");
         rv = -1;
         goto err;
     }
 
     /* Make sure the episode is sane */
-    episode = strtoul(ep, NULL, 0);
+    episode = strtoul((const char *)ep, NULL, 0);
 
     if(episode < 1 || episode > 4) {
         debug(DBG_ERROR, "Invalid episode given: %s\n", ep);
@@ -160,30 +328,32 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
 
     /* Make sure the id is sane */
     errno = 0;
-    id_num = strtoul(id, NULL, 0);
+    id_num = strtoul((const char *)id, NULL, 0);
 
     if(errno) {
-        debug(DBG_ERROR, "Invalid ID given for quest: %s\n", id);
+        debug(DBG_ERROR, "Invalid ID given for quest: %s\n", (const char *)id);
         rv = -5;
         goto err;
     }
 
     /* Make sure the min/max players count is sane */
     if(minpl) {
-        min_pl = strtoul(minpl, NULL, 0);
-        
+        min_pl = strtoul((const char *)minpl, NULL, 0);
+
         if(min_pl < 1 || min_pl > 4) {
-            debug(DBG_ERROR, "Invalid minimum players given: %s\n", minpl);
+            debug(DBG_ERROR, "Invalid minimum players given: %s\n",
+                  (const char *)minpl);
             rv = -9;
             goto err;
         }
     }
 
     if(maxpl) {
-        max_pl = strtoul(maxpl, NULL, 0);
-        
+        max_pl = strtoul((const char *)maxpl, NULL, 0);
+
         if(max_pl < 1 || max_pl > 4 || max_pl < min_pl) {
-            debug(DBG_ERROR, "Invalid maximum players given: %s\n", maxpl);
+            debug(DBG_ERROR, "Invalid maximum players given: %s\n",
+                  (const char *)maxpl);
             rv = -10;
             goto err;
         }
@@ -211,9 +381,9 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     q->event = (int)event_list;
     q->format = (int)format;
 
-    strncpy(q->name, name, 31);
+    strncpy(q->name, (const char *)name, 31);
     q->name[31] = '\0';
-    q->prefix = prefix;
+    q->prefix = (char *)prefix;
 
     /* Fill in the versions */
     if(!xmlStrcmp(v1, XC"true")) {
@@ -252,6 +422,12 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"drops")) {
+            if(handle_drops(n, q)) {
+                rv = -9;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -278,7 +454,7 @@ static int handle_description(xmlNode *n, sylverant_quest_category_t *c) {
 
     /* Grab the description from the node */
     if((desc = xmlNodeListGetString(n->doc, n->children, 1))) {
-        strncpy(c->desc, desc, 111);
+        strncpy(c->desc, (const char *)desc, 111);
         c->desc[111] = '\0';
         xmlFree(desc);
     }
@@ -314,6 +490,9 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
     else if(!xmlStrcmp(type, XC"challenge")) {
         type_num = SYLVERANT_QUEST_CHALLENGE;
     }
+    else if(!xmlStrcmp(type, XC"government")) {
+        type_num = SYLVERANT_QUEST_GOVERNMENT;
+    }
     else {
         debug(DBG_ERROR, "Invalid category type: %s\n", (char *)type);
         rv = -2;
@@ -339,7 +518,7 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
 
     /* Copy over what we have so far */
     cat->type = type_num;
-    strncpy(cat->name, name, 31);
+    strncpy(cat->name, (const char *)name, 31);
     cat->name[31] = '\0';
 
     /* Now that we're done with that, deal with any children of the node */
@@ -480,6 +659,8 @@ void sylverant_quests_destroy(sylverant_quest_list_t *list) {
             /* Free each malloced item in the quest. */
             xmlFree(quest->long_desc);
             xmlFree(quest->prefix);
+            free(quest->monster_ids);
+            free(quest->monster_types);
         }
 
         /* Free the list of quests. */

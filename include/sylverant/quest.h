@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -29,9 +29,20 @@
 #define SYLVERANT_QUEST_NORMAL      (1 << 0)
 #define SYLVERANT_QUEST_BATTLE      (1 << 1)
 #define SYLVERANT_QUEST_CHALLENGE   (1 << 2)
+#define SYLVERANT_QUEST_GOVERNMENT  (1 << 3)
 
 #define SYLVERANT_QUEST_BINDAT      0
 #define SYLVERANT_QUEST_QST         1
+
+#define SYLVERANT_QUEST_ENDROP_NONE     0
+#define SYLVERANT_QUEST_ENDROP_NORARE   1
+#define SYLVERANT_QUEST_ENDROP_PARTIAL  2
+#define SYLVERANT_QUEST_ENDROP_FREE     3
+
+struct sylverant_quest_enemy {
+    uint32_t key;
+    uint32_t value;
+};
 
 typedef struct sylverant_quest {
     uint32_t qid;
@@ -49,6 +60,12 @@ typedef struct sylverant_quest {
     int format;
     int max_players;
     int min_players;
+
+    /* Stuff related to server-side drops. */
+    int num_monster_types;
+    int num_monster_ids;
+    struct sylverant_quest_enemy *monster_types;
+    struct sylverant_quest_enemy *monster_ids;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

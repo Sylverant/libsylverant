@@ -1019,6 +1019,10 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
     xmlNode *n;
     sylverant_ship_t *rv;
     int irv = 0;
+    static int have_initted = 0;
+
+    if(!have_initted)
+        xmlInitParser();
 
     /* Allocate space for the base of the config. */
     rv = (sylverant_ship_t *)malloc(sizeof(sylverant_ship_t));
