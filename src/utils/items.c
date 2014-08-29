@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -118,13 +118,13 @@ static int handle_pbs(xmlNode *n, uint8_t *c, uint8_t *r, uint8_t *l) {
     }
 
     /* Figure out what list to look at */
-    if(!xmlStrcmp(pos, "center")) {
+    if(!xmlStrcmp(pos, XC"center")) {
         valid = c;
     }
-    else if(!xmlStrcmp(pos, "right")) {
+    else if(!xmlStrcmp(pos, XC"right")) {
         valid = r;
     }
-    else if(!xmlStrcmp(pos, "left")) {
+    else if(!xmlStrcmp(pos, XC"left")) {
         valid = l;
     }
     else {
@@ -249,7 +249,7 @@ static int handle_attributes(xmlNode *n, uint64_t *valid) {
 
     /* Clean up the string, since we're done */
     xmlFree(attr);
-    
+
     return 0;
 }
 
@@ -549,13 +549,13 @@ static int handle_mag(xmlNode *n, sylverant_mag_t *m) {
                 return -7;
             }
         }
-        else if(!xmlStrcmp(n->name, "pbs")) {
+        else if(!xmlStrcmp(n->name, XC"pbs")) {
             if(handle_pbs(n, &m->allowed_cpb, &m->allowed_rpb,
                           &m->allowed_lpb)) {
                 return -8;
             }
         }
-        else if(!xmlStrcmp(n->name, "colors")) {
+        else if(!xmlStrcmp(n->name, XC"colors")) {
             if(handle_colors(n, &m->allowed_colors)) {
                 return -9;
             }
@@ -942,7 +942,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         xmlFree(def_act);
         xmlFree(srank);
         xmlFree(pbs);
-        
+
         goto err_doc;
     }
 
@@ -969,10 +969,10 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         rv->default_behavior = ITEM_DEFAULT_ALLOW;
     }
 
-    if(!xmlStrcmp(srank, "true")) {
+    if(!xmlStrcmp(srank, XC"true")) {
         rv->check_srank_names = 1;
     }
-    else if(!xmlStrcmp(srank, "false")) {
+    else if(!xmlStrcmp(srank, XC"false")) {
         rv->check_srank_names = 0;
     }
     else {
@@ -980,10 +980,10 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         rv->check_srank_names = 1;
     }
 
-    if(!xmlStrcmp(pbs, "true")) {
+    if(!xmlStrcmp(pbs, XC"true")) {
         rv->check_pbs = 1;
     }
-    else if(!xmlStrcmp(pbs, "false")) {
+    else if(!xmlStrcmp(pbs, XC"false")) {
         rv->check_pbs = 0;
     }
     else {
@@ -995,7 +995,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     xmlFree(bo);
     xmlFree(def_act);
     xmlFree(srank);
-    xmlFree(pbs);    
+    xmlFree(pbs);
 
     n = n->children;
     while(n) {
@@ -1067,6 +1067,11 @@ static void clean_list(struct sylverant_item_queue *q) {
 
 int sylverant_free_limits(sylverant_limits_t *l) {
     sylverant_item_t *i, *tmp;
+
+    /* Don't crash if the list is NULL. This is why we can return an error,
+       after all. */
+    if(!l)
+        return -1;
 
     /* Go through each list to clean up the information in it. */
     if(l->weapons) {
@@ -1462,7 +1467,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check the synchro */
-            tmp = i->data2_b[2] | (i->data2_b[3] << 8) & 0x7FFF;
+            tmp = (i->data2_b[2] | (i->data2_b[3] << 8)) & 0x7FFF;
             if((m->max_synchro != -1 && tmp > m->max_synchro) ||
                (m->min_synchro != -1 && tmp < m->min_synchro)) {
                 return 0;
