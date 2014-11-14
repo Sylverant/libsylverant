@@ -222,8 +222,7 @@ static int find_longest_match(struct prs_comp_cxt *cxt, struct prs_hash_cxt *hc,
 
     /* Ok, we have something in the hash table that matches the hash value. That
        doesn't necessarily mean we have a matching string though, of course.
-       Follow the chain to see if we do, and to find the longest one that'll fit
-       as a short search and as a long search. */
+       Follow the chain to see if we do, and find the longest match. */
     while(ent) {
         if((mlen = match_length(cxt, ent))) {
             if(mlen > longest || mlen >= 256) {
