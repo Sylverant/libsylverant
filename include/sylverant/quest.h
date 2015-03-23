@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -33,11 +33,16 @@
 
 #define SYLVERANT_QUEST_BINDAT      0
 #define SYLVERANT_QUEST_QST         1
+#define SYLVERANT_QUEST_UBINDAT     2
 
 #define SYLVERANT_QUEST_ENDROP_NONE     0
 #define SYLVERANT_QUEST_ENDROP_NORARE   1
 #define SYLVERANT_QUEST_ENDROP_PARTIAL  2
 #define SYLVERANT_QUEST_ENDROP_FREE     3
+
+#define SYLVERANT_QUEST_EP1             (1 << 0)
+#define SYLVERANT_QUEST_EP2             (1 << 1)
+#define SYLVERANT_QUEST_EP4             (1 << 2)
 
 struct sylverant_quest_enemy {
     uint32_t key;
@@ -66,6 +71,8 @@ typedef struct sylverant_quest {
     int num_monster_ids;
     struct sylverant_quest_enemy *monster_types;
     struct sylverant_quest_enemy *monster_ids;
+
+    int sync;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {
@@ -73,6 +80,7 @@ typedef struct sylverant_qcat {
     char desc[112];
 
     uint32_t type;
+    uint32_t episodes;
     int quest_count;
     sylverant_quest_t *quests;
 } sylverant_quest_category_t;

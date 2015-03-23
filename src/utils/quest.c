@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -228,7 +228,7 @@ err:
 }
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
-    xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id;
+    xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
     xmlChar *minpl, *maxpl;
     int rv = 0, format;
     void *tmp;
@@ -251,6 +251,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     id = xmlGetProp(n, XC"id");
     minpl = xmlGetProp(n, XC"minpl");
     maxpl = xmlGetProp(n, XC"maxpl");
+    sync = xmlGetProp(n, XC"sync");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -274,6 +275,9 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     }
     else if(!xmlStrcmp(fmt, XC"bindat")) {
         format = SYLVERANT_QUEST_BINDAT;
+    }
+    else if(!xmlStrcmp(fmt, XC"ubindat")) {
+        format = SYLVERANT_QUEST_UBINDAT;
     }
     else {
         debug(DBG_ERROR, "Invalid format given for quest: %s\n", fmt);
@@ -386,21 +390,23 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     q->prefix = (char *)prefix;
 
     /* Fill in the versions */
-    if(!xmlStrcmp(v1, XC"true")) {
+    if(!xmlStrcmp(v1, XC"true"))
         q->versions |= SYLVERANT_QUEST_V1;
-    }
-    if(!xmlStrcmp(v2, XC"true")) {
+
+    if(!xmlStrcmp(v2, XC"true"))
         q->versions |= SYLVERANT_QUEST_V2;
-    }
-    if(!xmlStrcmp(gc, XC"true")) {
+
+    if(!xmlStrcmp(gc, XC"true"))
         q->versions |= SYLVERANT_QUEST_GC;
-    }
-    if(!xmlStrcmp(bb, XC"true")) {
+
+    if(!xmlStrcmp(bb, XC"true"))
         q->versions |= SYLVERANT_QUEST_BB;
-    }
 
     q->min_players = min_pl;
     q->max_players = max_pl;
+
+    if(sync && !xmlStrcmp(sync, XC"true"))
+        q->sync = 1;
 
     /* Now that we're done with that, deal with any children of the node */
     n = n->children;
@@ -446,6 +452,9 @@ err:
     xmlFree(event);
     xmlFree(fmt);
     xmlFree(id);
+    xmlFree(minpl);
+    xmlFree(maxpl);
+    xmlFree(sync);
     return rv;
 }
 
@@ -463,15 +472,20 @@ static int handle_description(xmlNode *n, sylverant_quest_category_t *c) {
 }
 
 static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
-    xmlChar *name, *type;
+    xmlChar *name, *type, *eps;
+    char *token, *lasts;
     int rv = 0;
     uint32_t type_num;
+    uint32_t episodes = SYLVERANT_QUEST_EP1 | SYLVERANT_QUEST_EP2 |
+        SYLVERANT_QUEST_EP4;
     void *tmp;
     sylverant_quest_category_t *cat;
+    int epnum;
 
     /* Grab the attributes we're expecting */
     name = xmlGetProp(n, XC"name");
     type = xmlGetProp(n, XC"type");
+    eps = xmlGetProp(n, XC"episodes");
 
     /* Make sure we have both of them... */
     if(!name || !type) {
@@ -499,6 +513,38 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
         goto err;
     }
 
+    /* Is there an episode list specified? */
+    if(eps) {
+        /* Parse it. */
+        token = strtok_r((char *)eps, ", ", &lasts);
+        episodes = 0;
+
+        if(!token) {
+            debug(DBG_ERROR, "Invalid episodes given for category: %s\n",
+                  (char *)eps);
+            rv = -6;
+            goto err;
+        }
+
+        while(token) {
+            /* Parse the token */
+            errno = 0;
+            epnum = (int)strtol(token, NULL, 0);
+
+            if(errno || (epnum != 1 && epnum != 2 && epnum != 4)) {
+                debug(DBG_ERROR, "Invalid token in episodes: %s\n", token);
+                rv = -7;
+                goto err;
+            }
+
+            /* Set the bit for the specified episode */
+            episodes |= epnum;
+
+            /* Read the next number in, if any */
+            token = strtok_r(NULL, ", ", &lasts);
+        }
+    }
+
     /* Allocate space for the category */
     tmp = realloc(l->cats, (l->cat_count + 1) *
                   sizeof(sylverant_quest_category_t));
@@ -518,6 +564,8 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
 
     /* Copy over what we have so far */
     cat->type = type_num;
+    cat->episodes = episodes;
+
     strncpy(cat->name, (const char *)name, 31);
     cat->name[31] = '\0';
 
@@ -552,6 +600,7 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
 err:
     xmlFree(name);
     xmlFree(type);
+    xmlFree(eps);
     return rv;
 }
 
