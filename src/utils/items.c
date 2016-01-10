@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2014 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1107,14 +1107,17 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     int is_srank = 0, is_named_srank = 0;
     uint8_t tmp;
     int is_special_weapon = i->data_b[4] == 0x80;
+    uint32_t ic2;
 
     /* Grab the real item type, if its a v2 item */
-    if(i->data_b[5]) {
+    if(i->data_b[5])
         ic = (i->data_b[5] << 8);
-    }
+
+    ic2 = ic & 0x0000FFFF;
 
     /* Figure out if we're looking at a S-Rank or not */
-    if(ic >= 0x007000 && ic <= 0x008800) {
+    if((ic2 >= 0x7000 && ic2 <= 0x8800) ||
+       (ic2 >= 0xA500 && ic2 <= 0xA900)) {
         is_srank = 1;
 
         /* If we're looking at a S-Rank, figure out if it has a name */
