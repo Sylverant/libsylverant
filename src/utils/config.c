@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -191,20 +191,65 @@ static int handle_quests(xmlNode *n, sylverant_config_t *cur) {
 
 static int handle_limits(xmlNode *n, sylverant_config_t *cur) {
     xmlChar *fn;
+    xmlChar *name;
+    xmlChar *enforce;
+    int enf = 0;
+    void *tmp;
 
     /* Grab the attributes of the tag. */
     fn = xmlGetProp(n, XC"file");
+    name = xmlGetProp(n, XC"name");
+    enforce = xmlGetProp(n, XC"enforce");
 
     /* Make sure we have the data */
-    if(!fn) {
-        debug(DBG_ERROR, "Limits filename not given\n");
-        return -1;
+    if(!fn || !name) {
+        debug(DBG_ERROR, "Limits file or name not given\n");
+        goto err;
+    }
+
+    if(enforce) {
+        if(!xmlStrcmp(enforce, XC"true")) {
+            enf = 1;
+        }
+        else if(xmlStrcmp(enforce, XC"false")) {
+            debug(DBG_ERROR, "Invalid enforce value for limits file: %s\n",
+                  (char *)enforce);
+            goto err;
+        }
+    }
+
+    /* Make sure we don't already have an enforced limits file. */
+    if(cur->limits_enforced != -1) {
+        debug(DBG_ERROR, "Cannot have more than one enforced limits file!\n");
+        goto err;
+    }
+
+    /* Allocate space for it in the array. */
+    if(!(tmp = realloc(cur->limits, (cur->limits_count + 1) *
+                                    sizeof(sylverant_limit_config_t)))) {
+        debug(DBG_ERROR, "Cannot allocate space for limits file: %s\n",
+              strerror(errno));
+        goto err;
     }
 
     /* Copy it over to the struct */
-    cur->limits_file = (char *)fn;
+    cur->limits = (sylverant_limit_config_t *)tmp;
+    cur->limits[cur->limits_count].name = (char *)name;
+    cur->limits[cur->limits_count].filename = (char *)fn;
+    cur->limits[cur->limits_count].enforce = enf;
+
+    if(enf)
+        cur->limits_enforced = cur->limits_count;
+
+    ++cur->limits_count;
 
     return 0;
+
+err:
+    xmlFree(fn);
+    xmlFree(name);
+    xmlFree(enforce);
+    return -1;
 }
 
 static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
@@ -252,8 +297,8 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
 
     /* Copy the data in */
     cur->info_files[count].versions = 0;
-    cur->info_files[count].filename = fn;
-    cur->info_files[count].desc = desc;
+    cur->info_files[count].filename = (char *)fn;
+    cur->info_files[count].desc = (char *)desc;
 
     /* Fill in the applicable versions */
     if(!xmlStrcmp(gc, XC"true")) {
@@ -312,6 +357,36 @@ err:
     return rv;
 }
 
+static int handle_log(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *dir, *pfx;
+
+    /* Grab the data from the tag */
+    dir = xmlGetProp(n, XC"dir");
+    pfx = xmlGetProp(n, XC"prefix");
+
+    /* If we don't have the directory, report an error */
+    if(!dir) {
+        debug(DBG_ERROR, "Malformed log tag, no dir given\n");
+        goto err;
+    }
+
+    /* If no prefix was given, then blank it out. */
+    if(!pfx) {
+        pfx = (xmlChar *)xmlMalloc(1);
+        pfx[0] = 0;
+    }
+
+    /* Save the data to the configuration struct. */
+    cur->log_dir = (char *)dir;
+    cur->log_prefix = (char *)pfx;
+    return 0;
+
+err:
+    xmlFree(dir);
+    xmlFree(pfx);
+    return -1;
+}
+
 int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
@@ -331,6 +406,7 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
 
     /* Clear out the config. */
     memset(rv, 0, sizeof(sylverant_config_t));
+    rv->limits_enforced = -1;
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
@@ -427,6 +503,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"log")) {
+            if(handle_log(n, rv)) {
+                irv = -14;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -465,6 +547,11 @@ void sylverant_free_config(sylverant_config_t *cfg) {
             xmlFree(cfg->info_files[i].desc);
         }
 
+        for(i = 0; i < cfg->limits_count; ++i) {
+            xmlFree(cfg->limits[i].filename);
+            xmlFree(cfg->limits[i].name);
+        }
+
         /* Clean up the pointers */
         xmlFree(cfg->dbcfg.type);
         xmlFree(cfg->dbcfg.host);
@@ -475,9 +562,11 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->shipgate_key);
         xmlFree(cfg->shipgate_ca);
         xmlFree(cfg->quests_dir);
-        xmlFree(cfg->limits_file);
+        xmlFree(cfg->log_dir);
+        xmlFree(cfg->log_prefix);
 
         free(cfg->info_files);
+        free(cfg->limits);
 
         /* Clean up the base structure. */
         free(cfg);

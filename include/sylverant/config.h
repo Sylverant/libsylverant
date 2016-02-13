@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -78,6 +78,12 @@ typedef struct sylverant_info_file {
     uint32_t languages;
 } sylverant_info_file_t;
 
+typedef struct sylverant_limit_config {
+    char *name;
+    char *filename;
+    int enforce;
+} sylverant_limit_config_t;
+
 typedef struct sylverant_config {
     sylverant_dbconfig_t dbcfg;
     uint32_t server_ip;
@@ -87,9 +93,13 @@ typedef struct sylverant_config {
     char *shipgate_key;
     char *shipgate_ca;
     char *quests_dir;
-    char *limits_file;
+    sylverant_limit_config_t *limits;
+    int limits_count;
+    int limits_enforced;
     sylverant_info_file_t *info_files;
     int info_file_count;
+    char *log_dir;
+    char *log_prefix;
 } sylverant_config_t;
 
 typedef struct sylverant_event {
