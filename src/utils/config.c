@@ -219,7 +219,7 @@ static int handle_limits(xmlNode *n, sylverant_config_t *cur) {
     }
 
     /* Make sure we don't already have an enforced limits file. */
-    if(cur->limits_enforced != -1) {
+    if(enf && cur->limits_enforced != -1) {
         debug(DBG_ERROR, "Cannot have more than one enforced limits file!\n");
         goto err;
     }
