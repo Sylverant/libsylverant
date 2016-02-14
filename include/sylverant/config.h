@@ -120,7 +120,7 @@ typedef struct sylverant_shipcfg {
     char *ship_key;
     char *shipgate_ca;
     char *gm_file;
-    char *limits_file;
+    sylverant_limit_config_t *limits;
     sylverant_info_file_t *info_files;
     char *quests_file;
     char *quests_dir;
@@ -152,6 +152,8 @@ typedef struct sylverant_shipcfg {
     int blocks;
     int info_file_count;
     int event_count;
+    int limits_count;
+    int limits_default;
 } sylverant_ship_t;
 
 /* Read the configuration for the login server, shipgate, and patch server. */

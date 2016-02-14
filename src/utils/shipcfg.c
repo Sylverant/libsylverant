@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -72,7 +72,7 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
 
     /* Parse the address address out */
     if(addr) {
-        cfg->shipgate_host = addr;
+        cfg->shipgate_host = (char *)addr;
     }
     else if(ip) {
         rv = inet_pton(AF_INET, (char *)ip, &ip4);
@@ -88,7 +88,7 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
             }
         }
 
-        cfg->shipgate_host = ip;
+        cfg->shipgate_host = (char *)ip;
     }
 
     /* Parse the port out */
@@ -101,7 +101,7 @@ static int handle_shipgate(xmlNode *n, sylverant_ship_t *cfg) {
     }
 
     cfg->shipgate_port = (uint16_t)rv2;
-    cfg->shipgate_ca = ca;
+    cfg->shipgate_ca = (char *)ca;
     rv = 0;
 
 err:
@@ -471,8 +471,8 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
 
     /* Copy the data in */
     cur->info_files[count].versions = 0;
-    cur->info_files[count].filename = fn;
-    cur->info_files[count].desc = desc;
+    cur->info_files[count].filename = (char *)fn;
+    cur->info_files[count].desc = (char *)desc;
 
     /* Fill in the applicable versions */
     if(!v1 || !xmlStrcmp(v1, XC"true")) {
@@ -553,20 +553,69 @@ static int handle_quests(xmlNode *n, sylverant_ship_t *cur) {
 
 static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *fn;
+    xmlChar *name;
+    xmlChar *def;
+    int enf = 0;
+    void *tmp;
 
     /* Grab the attributes of the tag. */
     fn = xmlGetProp(n, XC"file");
+    name = xmlGetProp(n, XC"name");
+    def = xmlGetProp(n, XC"default");
 
     /* Make sure we have the data */
     if(!fn) {
-        debug(DBG_ERROR, "Limits filename not given\n");
-        return -1;
+        debug(DBG_ERROR, "Limits file not given\n");
+        goto err;
+    }
+
+    /* Special case for old-style tags with old DTDs... */
+    if(!def && !name)
+        enf = 1;
+
+    if(def) {
+        if(!xmlStrcmp(def, XC"true")) {
+            enf = 1;
+        }
+        else if(xmlStrcmp(def, XC"false")) {
+            debug(DBG_ERROR, "Invalid default value for limits file: %s\n",
+                  (char *)def);
+            goto err;
+        }
+    }
+
+    /* Make sure we don't already have an default limits file. */
+    if(enf && cur->limits_default != -1) {
+        debug(DBG_ERROR, "Cannot have more than one default limits file!\n");
+        goto err;
+    }
+
+    /* Allocate space for it in the array. */
+    if(!(tmp = realloc(cur->limits, (cur->limits_count + 1) *
+                                    sizeof(sylverant_limit_config_t)))) {
+        debug(DBG_ERROR, "Cannot allocate space for limits file: %s\n",
+              strerror(errno));
+        goto err;
     }
 
     /* Copy it over to the struct */
-    cur->limits_file = (char *)fn;
+    cur->limits = (sylverant_limit_config_t *)tmp;
+    cur->limits[cur->limits_count].name = (char *)name;
+    cur->limits[cur->limits_count].filename = (char *)fn;
+    cur->limits[cur->limits_count].enforce = enf;
+
+    if(enf)
+        cur->limits_default = cur->limits_count;
+
+    ++cur->limits_count;
 
     return 0;
+
+err:
+    xmlFree(fn);
+    xmlFree(name);
+    xmlFree(def);
+    return -1;
 }
 
 static int handle_bans(xmlNode *n, sylverant_ship_t *cur) {
@@ -654,7 +703,7 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
         cur->shipgate_flags |= SHIPGATE_FLAG_NODCNTE;
     }
 
-err:    
+err:
     xmlFree(v1);
     xmlFree(v2);
     xmlFree(pc);
@@ -787,19 +836,19 @@ static int handle_itempmt(xmlNode *n, sylverant_ship_t *cur) {
 
     /* See if we're supposed to cap unit +/- values like the client does... */
     limit = xmlGetProp(n, XC"limitv2units");
-    if(!limit || !xmlStrcmp(limit, "true"))
+    if(!limit || !xmlStrcmp(limit, XC"true"))
         cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITV2;
 
     xmlFree(limit);
 
     limit = xmlGetProp(n, XC"limitgcunits");
-    if(!limit || !xmlStrcmp(limit, "true"))
+    if(!limit || !xmlStrcmp(limit, XC"true"))
         cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITGC;
 
     xmlFree(limit);
 
     limit = xmlGetProp(n, XC"limitbbunits");
-    if(!limit || !xmlStrcmp(limit, "true"))
+    if(!limit || !xmlStrcmp(limit, XC"true"))
         cur->local_flags |= SYLVERANT_SHIP_PMT_LIMITBB;
 
     xmlFree(limit);
@@ -819,10 +868,10 @@ static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
 
     /* See if we're supposed to disable quest rares globally. */
     if(quest) {
-        if(!xmlStrcmp(quest, "true"))
+        if(!xmlStrcmp(quest, XC"true"))
             cur->local_flags |= SYLVERANT_SHIP_QUEST_RARES |
                 SYLVERANT_SHIP_QUEST_SRARES;
-        else if(!xmlStrcmp(quest, "partial"))
+        else if(!xmlStrcmp(quest, XC"partial"))
             cur->local_flags |= SYLVERANT_SHIP_QUEST_SRARES;
     }
 
@@ -883,7 +932,7 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         rv = -3;
         goto err;
     }
-    
+
     cur->blocks = (int)rv2;
 
     /* Parse out the children of the <ship> tag. */
@@ -1049,6 +1098,8 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
 
     memset(rv->events, 0, sizeof(sylverant_event_t));
 
+    rv->limits_default = -1;
+
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
     if(!cxt) {
@@ -1123,9 +1174,12 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
     }
 
     /* Did we configure a set of events, or just the default? */
-    if(rv->event_count == 0) {
+    if(rv->event_count == 0)
         rv->event_count = 1;
-    }
+
+    /* Did we configure limits files, but no default? */
+    if(rv->limits_count && rv->limits_default == -1)
+        rv->limits_default = 0;
 
     *cfg = rv;
 
@@ -1163,9 +1217,17 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
             free(cfg->info_files);
         }
 
+        if(cfg->limits) {
+            for(j = 0; j < cfg->limits_count; ++j) {
+                xmlFree(cfg->limits[j].filename);
+                xmlFree(cfg->limits[j].name);
+            }
+
+            free(cfg->limits);
+        }
+
         xmlFree(cfg->name);
         xmlFree(cfg->gm_file);
-        xmlFree(cfg->limits_file);
         xmlFree(cfg->quests_file);
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->bans_file);
@@ -1189,7 +1251,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->v2_rtdata_file);
         xmlFree(cfg->gc_rtdata_file);
         xmlFree(cfg->bb_rtdata_file);
-    
+
         free(cfg->events);
 
         /* Clean up the base structure. */
