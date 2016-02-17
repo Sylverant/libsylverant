@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -28,6 +28,7 @@
 
 #include "sylverant/items.h"
 #include "sylverant/debug.h"
+#include "sylverant/memory.h"
 
 #ifndef LIBXML_TREE_ENABLED
 #error You must have libxml2 with tree support built-in.
@@ -100,6 +101,9 @@ static const char *mag_colors[NUM_COLORS] = {
     "red", "blue", "yellow", "green", "purple", "darkpurple", "white", "cyan",
     "brown", "black", "c10", "c11", "c12", "c13", "c14", "c15"
 };
+
+/* Forward declaration. */
+static int sylverant_real_free_limits(sylverant_limits_t *l);
 
 static int handle_pbs(xmlNode *n, uint8_t *c, uint8_t *r, uint8_t *l) {
     xmlChar *pos, *pbs;
@@ -849,7 +853,8 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     }
 
     /* Allocate space for the base of the list. */
-    rv = (sylverant_limits_t *)malloc(sizeof(sylverant_limits_t));
+    rv = (sylverant_limits_t *)ref_alloc(sizeof(sylverant_limits_t),
+                                         &sylverant_real_free_limits);
 
     if(!rv) {
         debug(DBG_ERROR, "Cannot make space for items list\n");
@@ -1037,9 +1042,8 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
     /* Cleanup/error handling below... */
 err_doc:
-    if(irv < 0) {
-        sylverant_free_limits(rv);
-    }
+    if(irv < 0)
+        ref_release(rv);
 
     xmlFreeDoc(doc);
 err_cxt:
@@ -1065,7 +1069,7 @@ static void clean_list(struct sylverant_item_queue *q) {
     free(q);
 }
 
-int sylverant_free_limits(sylverant_limits_t *l) {
+static int sylverant_real_free_limits(sylverant_limits_t *l) {
     sylverant_item_t *i, *tmp;
 
     /* Don't crash if the list is NULL. This is why we can return an error,
@@ -1094,9 +1098,13 @@ int sylverant_free_limits(sylverant_limits_t *l) {
         l->tools = NULL;
     }
 
-    /* Now that that is done, free the limits structure too. */
-    free(l);
+    /* The structure itself will be freed by the reference counting code. */
 
+    return 0;
+}
+
+int sylverant_free_limits(sylverant_limits_t *l) {
+    ref_release(l);
     return 0;
 }
 

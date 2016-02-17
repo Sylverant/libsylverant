@@ -25,4 +25,7 @@ extern void *ref_alloc(size_t sz, void (*dtor)(void *));
 extern void *ref_retain(void *r);
 extern void *ref_release(void *r);
 
+#define retain(x) ref_retain(x)
+#define release(x) ref_release(x)
+
 #endif /* !SYLVERANT__MEMORY_H */
