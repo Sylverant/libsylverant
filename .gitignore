@@ -1,0 +1,36 @@
+# Git ignore list...
+
+# Compiled code.
+*.o
+*.exe
+*.so
+*.lo
+*.dylib
+*.dSYM
+*.a
+*.la
+.libs
+
+# Autotools generated stuff and various other build process junk.
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.log
+config.status
+config.sub
+configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+libtool.m4
+ltoptions.m4
+ltsugar.m4
+ltversion.m4
+lt~obsolete.m4
+missing
+.deps
+.dirstamp
