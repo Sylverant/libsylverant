@@ -79,6 +79,7 @@ typedef struct sylverant_info_file {
 } sylverant_info_file_t;
 
 typedef struct sylverant_limit_config {
+    uint32_t id;
     char *name;
     char *filename;
     int enforce;

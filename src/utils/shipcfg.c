@@ -552,13 +552,13 @@ static int handle_quests(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *fn;
-    xmlChar *name;
-    xmlChar *def;
-    int enf = 0;
+    xmlChar *fn, *name, *def, *id;
+    int enf = 0, i;
     void *tmp;
+    uint32_t idn = 0x7FFFFFFF;
 
     /* Grab the attributes of the tag. */
+    id = xmlGetProp(n, XC"id");
     fn = xmlGetProp(n, XC"file");
     name = xmlGetProp(n, XC"name");
     def = xmlGetProp(n, XC"default");
@@ -569,9 +569,10 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
         goto err;
     }
 
-    /* Special case for old-style tags with old DTDs... */
-    if(!def && !name)
-        enf = 1;
+    if((!id && name) || (id && !name)) {
+        debug(DBG_ERROR, "Must give both or none of id and name for limits.\n");
+        goto err;
+    }
 
     if(def) {
         if(!xmlStrcmp(def, XC"true")) {
@@ -581,6 +582,30 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
             debug(DBG_ERROR, "Invalid default value for limits file: %s\n",
                   (char *)def);
             goto err;
+        }
+    }
+    /* This is really !id && !name, but per the above, if one is not set, then
+       the other must not be set either, so this works. */
+    else if(!id) {
+        enf = 1;
+    }
+
+    if(id) {
+        /* Parse the id out */
+        idn = (uint32_t)strtoul((char *)id, NULL, 0);
+
+        if(idn == 0 || idn > 0x7FFFFFFF) {
+            debug(DBG_ERROR, "Invalid id given for limits: %s\n", (char *)id);
+            goto err;
+        }
+
+        /* Check for duplicate IDs. */
+        for(i = 0; i < cur->limits_count; ++i) {
+            if(cur->limits[i].id == idn) {
+                debug(DBG_ERROR, "Duplicate id given for limits: %s\n",
+                      (char *)id);
+                goto err;
+            }
         }
     }
 
@@ -600,6 +625,7 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
 
     /* Copy it over to the struct */
     cur->limits = (sylverant_limit_config_t *)tmp;
+    cur->limits[cur->limits_count].id = idn;
     cur->limits[cur->limits_count].name = (char *)name;
     cur->limits[cur->limits_count].filename = (char *)fn;
     cur->limits[cur->limits_count].enforce = enf;
@@ -609,9 +635,13 @@ static int handle_limits(xmlNode *n, sylverant_ship_t *cur) {
 
     ++cur->limits_count;
 
+    xmlFree(def);
+    xmlFree(id);
+
     return 0;
 
 err:
+    xmlFree(id);
     xmlFree(fn);
     xmlFree(name);
     xmlFree(def);
