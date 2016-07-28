@@ -1115,11 +1115,23 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     int is_srank = 0, is_named_srank = 0;
     uint8_t tmp;
     int is_special_weapon = i->data_b[4] == 0x80;
+    int is_wrapped = 0;
     uint32_t ic2;
 
-    /* Grab the real item type, if its a v2 item */
-    if(i->data_b[5])
+    /* Grab the real item type, if its a v2 item.
+       Note: Gamecube uses this byte for wrapping paper design. */
+    if(version < ITEM_VERSION_GC && i->data_b[5])
         ic = (i->data_b[5] << 8);
+
+    /* Check that the wrapping paper is valid... Should we really bother
+       with this at all? */
+    if(version >= ITEM_VERSION_GC) {
+        is_wrapped = i->data_b[4] & 0x40;
+
+        if(is_wrapped && (i->data_b[5] > 0x0A || i->data_b[5] == 0x05)) {
+            return 0;
+        }
+    }
 
     ic2 = ic & 0x0000FFFF;
 
@@ -1252,7 +1264,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check if the attribute of the weapon is valid */
-            tmp = i->data_b[4] & 0x7F;
+            tmp = i->data_b[4] & 0x3F;
             if(tmp > Weapon_Attr_MAX) {
                 return 0;
             }
@@ -1279,9 +1291,10 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
     uint16_t dfp, evp;
     int16_t plus;
     int type = (ic >> 8) & 0x03;
+    int wrapping;
 
     /* Grab the real item type, if its a v2 item */
-    if(type != ITEM_SUBTYPE_UNIT && i->data_b[3]) {
+    if(version < ITEM_VERSION_GC && type != ITEM_SUBTYPE_UNIT && i->data_b[3]) {
         ic = ic | (i->data_b[3] << 16);
     }
 
@@ -1324,6 +1337,16 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                         return 0;
                     }
 
+                    /* Check the validity of any wrapping paper applied, if
+                       applicable. */
+                    if(version >= ITEM_VERSION_GC) {
+                        if((i->data_b[4] & 0x40)) {
+                            wrapping = i->data_b[4] & 0x0F;
+                            if(wrapping > 0x0A || wrapping == 5)
+                                return 0;
+                        }
+                    }
+
                     break;
 
                 case ITEM_SUBTYPE_BARRIER:
@@ -1349,6 +1372,16 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                         return 0;
                     }
 
+                    /* Check the validity of any wrapping paper applied, if
+                       applicable. */
+                    if(version >= ITEM_VERSION_GC) {
+                        if((i->data_b[4] & 0x40)) {
+                            wrapping = i->data_b[4] & 0x0F;
+                            if(wrapping > 0x0A || wrapping == 5)
+                                return 0;
+                        }
+                    }
+
                     break;
 
                 case ITEM_SUBTYPE_UNIT:
@@ -1360,6 +1393,11 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
                        (u->min_plus != INT_MIN && plus < u->min_plus)) {
                         return 0;
                     }
+
+                    /* Don't bother checking for wrapping here, since there's
+                       apparently a bug in the game that will make you lose your
+                       item permanently if you wrap a unit... That's punishment
+                       enough. */
 
                     break;
             }
@@ -1380,6 +1418,10 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
     uint16_t tmp;
     int level = 0;
     int cpb, rpb, lpb, hascpb, hasrpb, haslpb;
+
+    /* We don't support GC or later here for now... */
+    if(version >= ITEM_VERSION_GC)
+        return 1;
 
     /* Grab the real item type, if its a v2 item, otherwise chop down to only
        16-bits */
@@ -1542,7 +1584,7 @@ static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
     sylverant_tool_t *t;
 
     /* Grab the real item type, if its a v2 item */
-    if(ic == 0x060D03 && i->data_b[3]) {
+    if(version < ITEM_VERSION_GC && ic == 0x060D03 && i->data_b[3]) {
         ic = 0x000E03 | ((i->data_b[3] - 1) << 16);
     }
 
