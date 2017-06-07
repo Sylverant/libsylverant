@@ -67,7 +67,14 @@ void *ref_alloc(size_t sz, void (*dtor)(void *)) {
 
 void *ref_retain(void *r) {
     uint8_t *ptr = (uint8_t *)r;
-    struct ref *rf = (struct ref *)(ptr - PSZ);
+    struct ref *rf;
+
+    /* Make sure we're not trying to retain a NULL pointer... */
+    if(!r)
+        return NULL;
+
+    /* Grab the reference counting struct. */
+    rf = (struct ref *)(ptr - PSZ);
 
     /* Cowardly refuse to do anything if the magic isn't right. */
     if(rf->r.magic != RMAGIC)
@@ -80,7 +87,14 @@ void *ref_retain(void *r) {
 
 void *ref_release(void *r) {
     uint8_t *ptr = (uint8_t *)r;
-    struct ref *rf = (struct ref *)(ptr - PSZ);
+    struct ref *rf;
+
+    /* Make sure we're not trying to release a NULL pointer... */
+    if(!r)
+        return NULL;
+
+    /* Grab the reference counting struct. */
+    rf = (struct ref *)(ptr - PSZ);
 
     /* Cowardly refuse to do anything if the magic isn't right. */
     if(rf->r.magic != RMAGIC)
