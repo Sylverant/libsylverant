@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -432,7 +432,7 @@ err:
 }
 
 static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
-    xmlChar *fn, *desc, *v1, *v2, *pc, *lang;
+    xmlChar *fn, *desc, *v1, *v2, *pc, *gc, *lang;
     void *tmp;
     int rv = 0, count = cur->info_file_count, i, done = 0;
     char *lasts, *token;
@@ -443,6 +443,7 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
     v1 = xmlGetProp(n, XC"v1");
     v2 = xmlGetProp(n, XC"v2");
     pc = xmlGetProp(n, XC"pc");
+    gc = xmlGetProp(n, XC"gc");
     lang = xmlGetProp(n, XC"languages");
 
     /* Make sure we have all of them... */
@@ -487,6 +488,10 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
         cur->info_files[count].versions |= SYLVERANT_INFO_PC;
     }
 
+    if(!gc || !xmlStrcmp(gc, XC"true")) {
+        cur->info_files[count].versions |= SYLVERANT_INFO_GC;
+    }
+
     /* Parse the languages string, if given. */
     if(lang) {
         token = strtok_r((char *)lang, ", ", &lasts);
@@ -515,6 +520,7 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
     ++cur->info_file_count;
 
     xmlFree(lang);
+    xmlFree(gc);
     xmlFree(pc);
     xmlFree(v2);
     xmlFree(v1);
@@ -523,6 +529,7 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
 
 err:
     xmlFree(lang);
+    xmlFree(gc);
     xmlFree(pc);
     xmlFree(v2);
     xmlFree(v1);

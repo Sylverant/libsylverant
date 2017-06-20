@@ -37,7 +37,8 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NODCNTE   0x00000400
 
 /* The first few (V1, V2, PC) are only valid on the ship server, whereas the
-   others (GC, Ep3, BB) are only valid on the login server. */
+   last couple (Ep3, BB) are only valid on the login server. GC works either
+   place, but only some GC versions can see info files on the ship. */
 #define SYLVERANT_INFO_V1       0x00000001
 #define SYLVERANT_INFO_V2       0x00000002
 #define SYLVERANT_INFO_PC       0x00000004
