@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -506,6 +506,9 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
     }
     else if(!xmlStrcmp(type, XC"government")) {
         type_num = SYLVERANT_QUEST_GOVERNMENT;
+    }
+    else if(!xmlStrcmp(type, XC"debug")) {
+        type_num = SYLVERANT_QUEST_NORMAL | SYLVERANT_QUEST_DEBUG;
     }
     else {
         debug(DBG_ERROR, "Invalid category type: %s\n", (char *)type);
