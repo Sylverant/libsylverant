@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014, 2015, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -103,7 +103,7 @@ static const char *mag_colors[NUM_COLORS] = {
 };
 
 /* Forward declaration. */
-static int sylverant_real_free_limits(sylverant_limits_t *l);
+static void sylverant_real_free_limits(void *l);
 
 static int handle_pbs(xmlNode *n, uint8_t *c, uint8_t *r, uint8_t *l) {
     xmlChar *pos, *pbs;
@@ -842,7 +842,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     xmlNode *n;
     sylverant_limits_t *rv;
     int swap_code, irv = 0;
-    xmlChar *bo, *def_act, *srank, *pbs;
+    xmlChar *bo, *def_act, *srank, *pbs, *wrap;
 
     /* I'm lazy, and don't feel like typing this that many times. */
     typedef struct sylverant_item_queue iq_t;
@@ -939,6 +939,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     def_act = xmlGetProp(n, XC"default");
     srank = xmlGetProp(n, XC"check_sranks");
     pbs = xmlGetProp(n, XC"check_pbs");
+    wrap = xmlGetProp(n, XC"check_wrap");
 
     if(!bo || !def_act || !srank || !pbs) {
         debug(DBG_ERROR, "items tag missing required attribute\n");
@@ -947,6 +948,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         xmlFree(def_act);
         xmlFree(srank);
         xmlFree(pbs);
+        xmlFree(wrap);
 
         goto err_doc;
     }
@@ -996,11 +998,29 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         rv->check_pbs = 1;
     }
 
+    if(wrap) {
+        if(!xmlStrcmp(wrap, XC"true"))
+            rv->check_wrap = 1;
+        else if(!xmlStrcmp(wrap, XC"false"))
+            rv->check_wrap = 0;
+        else if(!xmlStrcmp(wrap, XC"sega"))
+            rv->check_wrap = 2;
+        else {
+            debug(DBG_WARN, "Unknown value for check_wrap, assuming true\n");
+            rv->check_pbs = 1;
+        }
+    }
+    else {
+        /*  Default to the old behavior, which is the "sega" behavior now. */
+        rv->check_wrap = 2;
+    }
+
     /* We're done with them, so clean them up... */
     xmlFree(bo);
     xmlFree(def_act);
     xmlFree(srank);
     xmlFree(pbs);
+    xmlFree(wrap);
 
     n = n->children;
     while(n) {
@@ -1049,6 +1069,7 @@ err_doc:
 err_cxt:
     xmlFreeParserCtxt(cxt);
 err:
+    *l = NULL;
     return irv;
 }
 
@@ -1069,13 +1090,13 @@ static void clean_list(struct sylverant_item_queue *q) {
     free(q);
 }
 
-static int sylverant_real_free_limits(sylverant_limits_t *l) {
+static void sylverant_real_free_limits(void *ll) {
     sylverant_item_t *i, *tmp;
+    sylverant_limits_t *l = (sylverant_limits_t *)ll;
 
-    /* Don't crash if the list is NULL. This is why we can return an error,
-       after all. */
+    /* Don't crash if the list is NULL. */
     if(!l)
-        return -1;
+        return;
 
     /* Go through each list to clean up the information in it. */
     if(l->weapons) {
@@ -1099,8 +1120,6 @@ static int sylverant_real_free_limits(sylverant_limits_t *l) {
     }
 
     /* The structure itself will be freed by the reference counting code. */
-
-    return 0;
 }
 
 int sylverant_free_limits(sylverant_limits_t *l) {
@@ -1123,13 +1142,15 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
     if(version < ITEM_VERSION_GC && i->data_b[5])
         ic = (i->data_b[5] << 8);
 
-    /* Check that the wrapping paper is valid... Should we really bother
-       with this at all? */
-    if(version >= ITEM_VERSION_GC) {
+    /* Check that the wrapping paper is valid... If we are requested to do so */
+    if(version >= ITEM_VERSION_GC && l->check_wrap) {
         is_wrapped = i->data_b[4] & 0x40;
 
-        if(is_wrapped && (i->data_b[5] > 0x0A || i->data_b[5] == 0x05)) {
-            return 0;
+        if(is_wrapped) {
+            if(i->data_b[5] > 0x0A)
+                return 0;
+            else if(l->check_wrap >= 2 && i->data_b[5] == 0x05)
+                return 0;
         }
     }
 
@@ -1339,10 +1360,12 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                     /* Check the validity of any wrapping paper applied, if
                        applicable. */
-                    if(version >= ITEM_VERSION_GC) {
+                    if(version >= ITEM_VERSION_GC && l->check_wrap) {
                         if((i->data_b[4] & 0x40)) {
                             wrapping = i->data_b[4] & 0x0F;
-                            if(wrapping > 0x0A || wrapping == 5)
+                            if(wrapping > 0x0A)
+                                return 0;
+                            else if(l->check_wrap >= 2 && wrapping == 5)
                                 return 0;
                         }
                     }
@@ -1374,10 +1397,12 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                     /* Check the validity of any wrapping paper applied, if
                        applicable. */
-                    if(version >= ITEM_VERSION_GC) {
+                    if(version >= ITEM_VERSION_GC && l->check_wrap) {
                         if((i->data_b[4] & 0x40)) {
                             wrapping = i->data_b[4] & 0x0F;
-                            if(wrapping > 0x0A || wrapping == 5)
+                            if(wrapping > 0x0A)
+                                return 0;
+                            else if(l->check_wrap >= 2 && wrapping == 5)
                                 return 0;
                         }
                     }

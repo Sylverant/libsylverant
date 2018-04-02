@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -152,6 +152,7 @@ typedef struct sylverant_limits {
     uint8_t default_cpb;
     uint8_t default_rpb;
     uint8_t default_lpb;
+    uint8_t check_wrap;
 } sylverant_limits_t;
 
 /* Weapon Attributes -- Stored in byte #4 of weapons. */
