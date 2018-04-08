@@ -1062,14 +1062,15 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
     /* Cleanup/error handling below... */
 err_doc:
-    if(irv < 0)
+    if(irv < 0) {
         ref_release(rv);
+        *l = NULL;
+    }
 
     xmlFreeDoc(doc);
 err_cxt:
     xmlFreeParserCtxt(cxt);
 err:
-    *l = NULL;
     return irv;
 }
 
