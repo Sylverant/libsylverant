@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -422,6 +422,20 @@ err:
     return -1;
 }
 
+static int handle_patch(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->patch_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have either, report the error */
+    debug(DBG_ERROR, "Malformed patch tag, no dir given\n");
+    return -1;
+}
+
 int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
@@ -544,6 +558,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"patch")) {
+            if(handle_patch(n, rv)) {
+                irv = -15;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -599,6 +619,7 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->quests_dir);
         xmlFree(cfg->log_dir);
         xmlFree(cfg->log_prefix);
+        xmlFree(cfg->patch_dir);
 
         free(cfg->info_files);
         free(cfg->limits);

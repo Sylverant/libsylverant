@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -102,6 +102,7 @@ typedef struct sylverant_config {
     int info_file_count;
     char *log_dir;
     char *log_prefix;
+    char *patch_dir;
 } sylverant_config_t;
 
 typedef struct sylverant_event {
@@ -129,6 +130,7 @@ typedef struct sylverant_shipcfg {
     char *bans_file;
     char *scripts_file;
     char *bb_param_dir;
+    char *v2_param_dir;
     char *bb_map_dir;
     char *v2_map_dir;
     char *gc_map_dir;

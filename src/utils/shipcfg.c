@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -812,6 +812,21 @@ static int handle_bbparam(xmlNode *n, sylverant_ship_t *cur) {
     return -1;
 }
 
+static int handle_v2param(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->v2_param_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed v2param tag, no dir given\n");
+    return -1;
+}
+
+
 static int handle_bbmaps(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *fn;
 
@@ -1082,6 +1097,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n2->name, XC"v2param")) {
+            if(handle_v2param(n2, cur)) {
+                rv = -20;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n2->name,
                   n2->line);
@@ -1273,6 +1294,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->ship_key);
         xmlFree(cfg->ship_cert);
         xmlFree(cfg->bb_param_dir);
+        xmlFree(cfg->v2_param_dir);
         xmlFree(cfg->bb_map_dir);
         xmlFree(cfg->v2_map_dir);
         xmlFree(cfg->gc_map_dir);
