@@ -22,6 +22,6 @@
 #include <inttypes.h>
 
 /* Calculate a CRC32 checksum over a given block of data. */
-uint32_t sylverant_crc32(uint8_t *data, int size);
+uint32_t sylverant_crc32(const uint8_t *data, int size);
 
 #endif /* !CHECKSUM_H */
