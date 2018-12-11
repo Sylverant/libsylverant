@@ -431,9 +431,21 @@ static int handle_patch(xmlNode *n, sylverant_config_t *cur) {
         return 0;
     }
 
-    /* If we don't have either, report the error */
+    /* If we don't have the directory, report the error */
     debug(DBG_ERROR, "Malformed patch tag, no dir given\n");
     return -1;
+}
+
+static int handle_scripts(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the files, if given */
+    if((fn = xmlGetProp(n, XC"shipgate")))
+        cur->sg_scripts_file = (char *)fn;
+    if((fn = xmlGetProp(n, XC"login")))
+        cur->lg_scripts_file = (char *)fn;
+
+    return 0;
 }
 
 int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
@@ -564,6 +576,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"scripts")) {
+            if(handle_scripts(n, rv)) {
+                irv = -16;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -620,6 +638,8 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->log_dir);
         xmlFree(cfg->log_prefix);
         xmlFree(cfg->patch_dir);
+        xmlFree(cfg->sg_scripts_file);
+        xmlFree(cfg->lg_scripts_file);
 
         free(cfg->info_files);
         free(cfg->limits);

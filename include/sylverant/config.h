@@ -103,6 +103,8 @@ typedef struct sylverant_config {
     char *log_dir;
     char *log_prefix;
     char *patch_dir;
+    char *sg_scripts_file;
+    char *lg_scripts_file;
 } sylverant_config_t;
 
 typedef struct sylverant_event {
