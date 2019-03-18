@@ -452,11 +452,16 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     if(sync && !xmlStrcmp(sync, XC"true"))
         q->sync = 1;
 
-    if(sflag)
+    if(sflag) {
         q->flags |= SYLVERANT_QUEST_FLAG16;
+        q->server_flag16_reg = (uint8_t)sf;
+    }
 
-    if(lctl)
+    if(lctl) {
         q->flags |= SYLVERANT_QUEST_FLAG32;
+        q->server_flag32_ctl = (uint8_t)lc;
+        q->server_flag32_dat = (uint8_t)ld;
+    }
 
     if(join && !xmlStrcmp(join, XC"true"))
         q->flags |= SYLVERANT_QUEST_JOINABLE;
