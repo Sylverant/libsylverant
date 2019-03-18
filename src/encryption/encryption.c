@@ -1,28 +1,31 @@
-/* PSO Encryption Library 
- * 
- * All included source written by Fuzziqer Software except where otherwise 
- * indicated. 
- * copyright 2004 
+/* PSO Encryption Library
+ *
+ * All included source written by Fuzziqer Software except where otherwise
+ * indicated.
+ * copyright 2004
  */
 
 #include <stdio.h>
 #include <string.h>
 #include "sylverant/encryption.h"
 
-// Internal functions (don't call these) 
+// Internal functions (don't call these)
 unsigned long CRYPT_PC_GetNextKey(CRYPT_SETUP*);
 void CRYPT_PC_MixKeys(CRYPT_SETUP*);
 void CRYPT_PC_CreateKeys(CRYPT_SETUP*,uint32_t);
 void CRYPT_PC_CryptData(CRYPT_SETUP*,void*,unsigned long);
+void CRYPT_PC_DEBUG_PrintKeys(CRYPT_SETUP*,char*);
 
 unsigned long CRYPT_GC_GetNextKey(CRYPT_SETUP*);
 void CRYPT_GC_MixKeys(CRYPT_SETUP*);
 void CRYPT_GC_CreateKeys(CRYPT_SETUP*,uint32_t);
 void CRYPT_GC_CryptData(CRYPT_SETUP*,void*,unsigned long);
+void CRYPT_GC_DEBUG_PrintKeys(CRYPT_SETUP*,char*);
 
 void CRYPT_BB_Decrypt(CRYPT_SETUP*,void*,unsigned long);
 void CRYPT_BB_Encrypt(CRYPT_SETUP*,void*,unsigned long);
 void CRYPT_BB_CreateKeys(CRYPT_SETUP*,void*);
+void CRYPT_BB_DEBUG_PrintKeys(CRYPT_SETUP *,char *);
 
 int CRYPT_CreateKeys(CRYPT_SETUP* cs,void* key,unsigned char type)
 {
@@ -107,4 +110,3 @@ void CRYPT_PrintData(void* ds,unsigned long data_size)
     for (y = 0; y < 16 - off; y++) printf("   ");
     printf("| %s\n",buffer);
 }
-
