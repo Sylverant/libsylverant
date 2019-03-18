@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -229,10 +229,11 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl;
+    xmlChar *minpl, *maxpl, *join, *sflag, *lctl, *ldat;
     int rv = 0, format;
     void *tmp;
-    unsigned long episode, id_num, min_pl = 1, max_pl = 4;
+    unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
+    unsigned long ld = 0;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -252,6 +253,10 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     minpl = xmlGetProp(n, XC"minpl");
     maxpl = xmlGetProp(n, XC"maxpl");
     sync = xmlGetProp(n, XC"sync");
+    join = xmlGetProp(n, XC"joinable");
+    sflag = xmlGetProp(n, XC"sflag");
+    lctl = xmlGetProp(n, XC"lflagctl");
+    ldat = xmlGetProp(n, XC"lflagdat");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -363,6 +368,45 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         }
     }
 
+    /* If the flag stuff is set, parse it and check for sanity. */
+    if(sflag) {
+        errno = 0;
+        sf = strtoul((const char *)sflag, NULL, 0);
+
+        if(errno || sf > 255) {
+            debug(DBG_ERROR, "Invalid sflag given: %s\n", (const char *)sflag);
+            rv = -11;
+            goto err;
+        }
+    }
+
+    if((lctl && !ldat) || (ldat && !lctl)) {
+        debug(DBG_ERROR, "Must give both of lflagdat/lflagctl (or neither)\n");
+        rv = -12;
+        goto err;
+    }
+
+    if(lctl) {
+        errno = 0;
+        lc = strtoul((const char *)lctl, NULL, 0);
+
+        if(errno || lc > 255) {
+            debug(DBG_ERROR, "Invalid lflagctl given: %s\n",
+                  (const char *)lctl);
+            rv = -13;
+            goto err;
+        }
+
+        ld = strtoul((const char *)ldat, NULL, 0);
+
+        if(errno || lc > 255) {
+            debug(DBG_ERROR, "Invalid lflagdat given: %s\n",
+                  (const char *)ldat);
+            rv = -14;
+            goto err;
+        }
+    }
+
     /* Allocate space for the quest */
     tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
 
@@ -407,6 +451,15 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
 
     if(sync && !xmlStrcmp(sync, XC"true"))
         q->sync = 1;
+
+    if(sflag)
+        q->flags |= SYLVERANT_QUEST_FLAG16;
+
+    if(lctl)
+        q->flags |= SYLVERANT_QUEST_FLAG32;
+
+    if(join && !xmlStrcmp(join, XC"true"))
+        q->flags |= SYLVERANT_QUEST_JOINABLE;
 
     /* Now that we're done with that, deal with any children of the node */
     n = n->children;
@@ -455,6 +508,10 @@ err:
     xmlFree(minpl);
     xmlFree(maxpl);
     xmlFree(sync);
+    xmlFree(join);
+    xmlFree(sflag);
+    xmlFree(lctl);
+    xmlFree(ldat);
     return rv;
 }
 

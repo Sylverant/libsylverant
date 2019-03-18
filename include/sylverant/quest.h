@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011, 2014, 2015, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2014, 2015, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -19,7 +19,7 @@
 #ifndef QUEST_H
 #define QUEST_H
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #define SYLVERANT_QUEST_V1  (1 << 0)
 #define SYLVERANT_QUEST_V2  (1 << 1)
@@ -32,6 +32,12 @@
 #define SYLVERANT_QUEST_GOVERNMENT  (1 << 3)
 #define SYLVERANT_QUEST_DEBUG       (1 << 31)
 #define SYLVERANT_QUEST_TYPE_MASK   0x000000FF
+
+#define SYLVERANT_QUEST_JOINABLE    (1 << 0)
+#define SYLVERANT_QUEST_SYNC_REGS   (1 << 1)
+#define SYLVERANT_QUEST_SYNC_ALL    (1 << 2)
+#define SYLVERANT_QUEST_FLAG16      (1 << 3)
+#define SYLVERANT_QUEST_FLAG32      (1 << 4)
 
 #define SYLVERANT_QUEST_BINDAT      0
 #define SYLVERANT_QUEST_QST         1
@@ -54,6 +60,7 @@ struct sylverant_quest_enemy {
 typedef struct sylverant_quest {
     uint32_t qid;
     uint32_t versions;
+    uint32_t flags;
 
     char name[32];
     char desc[112];
@@ -73,6 +80,13 @@ typedef struct sylverant_quest {
     int num_monster_ids;
     struct sylverant_quest_enemy *monster_types;
     struct sylverant_quest_enemy *monster_ids;
+
+    /* Stuff related to registers */
+    int num_sync;
+    uint8_t *synced_regs;
+    uint8_t server_flag16_reg;
+    uint8_t server_flag32_ctl;
+    uint8_t server_flag32_dat;
 
     int sync;
 } sylverant_quest_t;
