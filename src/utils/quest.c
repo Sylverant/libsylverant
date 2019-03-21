@@ -227,6 +227,109 @@ err:
     return rv;
 }
 
+static int handle_syncregs(xmlNode *n, sylverant_quest_t *q) {
+    xmlChar *def, *list;
+    int rv = 0, cnt, ne;
+    uint8_t *sr = NULL;
+    char *tmp, *tok;
+    unsigned long val;
+    void *p;
+
+    /* Grab the attributes we're expecting. */
+    def = xmlGetProp(n, XC"default");
+    list = xmlGetProp(n, XC"list");
+
+    /* The default attribute is required. */
+    if(!def) {
+        debug(DBG_ERROR, "syncregs requires a default attribute\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* What we do next depends on the default setting... */
+    if(!xmlStrcmp(def, "all")) {
+        if(list) {
+            debug(DBG_ERROR, "syncregs can't have default='all' and list\n");
+            rv = -2;
+            goto err;
+        }
+
+        q->flags |= SYLVERANT_QUEST_SYNC_REGS | SYLVERANT_QUEST_SYNC_ALL;
+    }
+    else if(!xmlStrcmp(def, "none")) {
+        if(!list) {
+            debug(DBG_ERROR, "syncregs requires list with default='none'\n");
+            rv = -3;
+            goto err;
+        }
+
+        /* Parse the list... */
+        if(!(sr = (uint8_t *)malloc(10))) {
+            debug(DBG_ERROR, "Malloc failed!\n");
+            rv = -4;
+            goto err;
+        }
+
+        cnt = 10;
+        ne = 0;
+
+        tok = strtok_r((char *)list, " ,;\t\n", &tmp);
+        while(tok) {
+            errno = 0;
+            val = strtoul(tok, NULL, 0);
+            if(errno) {
+                debug(DBG_ERROR, "Invalid element in syncregs list: %s\n", tok);
+                rv = -5;
+                goto err;
+            }
+
+            if(val > 255) {
+                debug(DBG_ERROR, "Invalid element in syncregs list: %d\n", val);
+                rv = -6;
+                goto err;
+            }
+
+            /* If we need more space, double it. */
+            if(ne > cnt) {
+                p = realloc(sr, cnt << 1);
+                if(!p) {
+                    debug(DBG_ERROR, "Realloc failed!\n");
+                    rv = -7;
+                    goto err;
+                }
+
+                cnt <<= 1;
+                sr = (uint8_t *)p;
+            }
+
+            /* Store the parsed value */
+            sr[ne++] = (uint8_t)val;
+
+            /* Parse the next one out */
+            tok = strtok_r(NULL, " ,;\t\n", &tmp);
+        }
+
+        /* Resize the array down -- we don't fret if this fails, because we're
+           just making it smaller anyway... */
+        p = realloc(sr, ne);
+        if(p)
+            sr = (uint8_t *)p;
+
+        /* We've parsed the whole list, store it. */
+        q->flags |= SYLVERANT_QUEST_SYNC_REGS;
+        q->num_sync = ne;
+        q->synced_regs = sr;
+    }
+
+err:
+    if(rv < 0 && sr)
+        free(sr);
+
+    xmlFree(list);
+    xmlFree(def);
+    return rv;
+}
+
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
     xmlChar *minpl, *maxpl, *join, *sflag, *lctl, *ldat;
@@ -489,6 +592,12 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         else if(!xmlStrcmp(n->name, XC"drops")) {
             if(handle_drops(n, q)) {
                 rv = -9;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"syncregs")) {
+            if(handle_syncregs(n, q)) {
+                rv = -15;
                 goto err;
             }
         }
@@ -775,6 +884,7 @@ void sylverant_quests_destroy(sylverant_quest_list_t *list) {
             xmlFree(quest->prefix);
             free(quest->monster_ids);
             free(quest->monster_types);
+            free(quest->synced_regs);
         }
 
         /* Free the list of quests. */
