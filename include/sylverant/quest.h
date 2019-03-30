@@ -38,6 +38,7 @@
 #define SYLVERANT_QUEST_SYNC_ALL    (1 << 2)
 #define SYLVERANT_QUEST_FLAG16      (1 << 3)
 #define SYLVERANT_QUEST_FLAG32      (1 << 4)
+#define SYLVERANT_QUEST_DATAFL      (1 << 5)
 
 #define SYLVERANT_QUEST_BINDAT      0
 #define SYLVERANT_QUEST_QST         1
@@ -87,6 +88,7 @@ typedef struct sylverant_quest {
     uint8_t server_flag16_reg;
     uint8_t server_flag32_ctl;
     uint8_t server_flag32_dat;
+    uint8_t server_data_reg;
 
     int sync;
 } sylverant_quest_t;

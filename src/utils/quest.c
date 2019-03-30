@@ -332,11 +332,11 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl, *join, *sflag, *lctl, *ldat;
+    xmlChar *minpl, *maxpl, *join, *sflag, *lctl, *ldat, *sdata;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
-    unsigned long ld = 0;
+    unsigned long ld = 0, sd = 0;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -360,6 +360,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     sflag = xmlGetProp(n, XC"sflag");
     lctl = xmlGetProp(n, XC"lflagctl");
     ldat = xmlGetProp(n, XC"lflagdat");
+    sdata = xmlGetProp(n, XC"datareg");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -510,6 +511,18 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         }
     }
 
+    if(sdata) {
+        errno = 0;
+        sd = strtoul((const char *)sdata, NULL, 0);
+
+        if(errno || sd > 255) {
+            debug(DBG_ERROR, "Invalid datareg given: %s\n",
+                  (const char *)sdata);
+            rv = -16;
+            goto err;
+        }
+    }
+
     /* Allocate space for the quest */
     tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
 
@@ -564,6 +577,11 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         q->flags |= SYLVERANT_QUEST_FLAG32;
         q->server_flag32_ctl = (uint8_t)lc;
         q->server_flag32_dat = (uint8_t)ld;
+    }
+
+    if(sdata) {
+        q->flags |= SYLVERANT_QUEST_DATAFL;
+        q->server_data_reg = (uint8_t)sd;
     }
 
     if(join && !xmlStrcmp(join, XC"true"))
