@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -30,5 +30,6 @@
 void debug_set_threshold(int level);
 FILE *debug_set_file(FILE *fp);
 void debug(int level, const char *fmt, ...);
+int fdebug(FILE *fp, int level, const char *fmt, ...);
 
 #endif /* !DEBUG_H */
