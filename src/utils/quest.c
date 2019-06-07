@@ -332,11 +332,11 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl, *join, *sflag, *lctl, *ldat, *sdata;
+    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
-    unsigned long ld = 0, sd = 0;
+    unsigned long ld = 0, sd = 0, sc = 0;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -358,9 +358,8 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     sync = xmlGetProp(n, XC"sync");
     join = xmlGetProp(n, XC"joinable");
     sflag = xmlGetProp(n, XC"sflag");
-    lctl = xmlGetProp(n, XC"lflagctl");
-    ldat = xmlGetProp(n, XC"lflagdat");
     sdata = xmlGetProp(n, XC"datareg");
+    sctl = xmlGetProp(n, XC"ctlreg");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -484,41 +483,30 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         }
     }
 
-    if((lctl && !ldat) || (ldat && !lctl)) {
-        debug(DBG_ERROR, "Must give both of lflagdat/lflagctl (or neither)\n");
+    /* Check if this quest uses server data function calls */
+    if((sctl && !sdata) || (sdata && !sctl)) {
+        debug(DBG_ERROR, "Must give both of datareg/ctlreg (or neither)\n");
         rv = -12;
         goto err;
     }
 
-    if(lctl) {
+    if(sctl) {
         errno = 0;
-        lc = strtoul((const char *)lctl, NULL, 0);
+        sc = strtoul((const char *)sctl, NULL, 0);
 
-        if(errno || lc > 255) {
-            debug(DBG_ERROR, "Invalid lflagctl given: %s\n",
-                  (const char *)lctl);
+        if(errno || sc > 255) {
+            debug(DBG_ERROR, "Invalid ctlreg given: %s\n",
+                  (const char *)sctl);
             rv = -13;
             goto err;
         }
 
-        ld = strtoul((const char *)ldat, NULL, 0);
-
-        if(errno || lc > 255) {
-            debug(DBG_ERROR, "Invalid lflagdat given: %s\n",
-                  (const char *)ldat);
-            rv = -14;
-            goto err;
-        }
-    }
-
-    if(sdata) {
-        errno = 0;
         sd = strtoul((const char *)sdata, NULL, 0);
 
         if(errno || sd > 255) {
             debug(DBG_ERROR, "Invalid datareg given: %s\n",
                   (const char *)sdata);
-            rv = -16;
+            rv = -14;
             goto err;
         }
     }
@@ -573,15 +561,10 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         q->server_flag16_reg = (uint8_t)sf;
     }
 
-    if(lctl) {
-        q->flags |= SYLVERANT_QUEST_FLAG32;
-        q->server_flag32_ctl = (uint8_t)lc;
-        q->server_flag32_dat = (uint8_t)ld;
-    }
-
     if(sdata) {
         q->flags |= SYLVERANT_QUEST_DATAFL;
         q->server_data_reg = (uint8_t)sd;
+        q->server_ctl_reg = (uint8_t)sc;
     }
 
     if(join && !xmlStrcmp(join, XC"true"))
@@ -642,8 +625,8 @@ err:
     xmlFree(sync);
     xmlFree(join);
     xmlFree(sflag);
-    xmlFree(lctl);
-    xmlFree(ldat);
+    xmlFree(sctl);
+    xmlFree(sdata);
     return rv;
 }
 
