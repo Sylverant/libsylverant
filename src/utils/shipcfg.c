@@ -1,7 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -932,6 +933,20 @@ static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
     return 0;
 }
 
+static int handle_smutdata(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"file"))) {
+        cur->smutdata_file = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed smutdata tag, no file given\n");
+    return -1;
+}
+
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
     int rv;
@@ -1100,6 +1115,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"v2param")) {
             if(handle_v2param(n2, cur)) {
                 rv = -20;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"smutdata")) {
+            if(handle_smutdata(n2, cur)) {
+                rv = -21;
                 goto err;
             }
         }
