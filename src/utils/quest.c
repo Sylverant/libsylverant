@@ -73,7 +73,7 @@ static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def) {
 
     /* Make sure we have all of them... */
     if((!type && !id) || !drops) {
-        debug(DBG_ERROR, "One or more required monster attributes missing %p %p %p\n", type, id, drops);
+        debug(DBG_ERROR, "One or more required monster attributes missing\n");
         rv = -1;
         goto err;
     }
@@ -332,11 +332,11 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata;
+    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
-    unsigned long ld = 0, sd = 0, sc = 0;
+    unsigned long ld = 0, sd = 0, sc = 0, privs = 0;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -360,6 +360,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     sflag = xmlGetProp(n, XC"sflag");
     sdata = xmlGetProp(n, XC"datareg");
     sctl = xmlGetProp(n, XC"ctlreg");
+    priv = xmlGetProp(n, XC"privileges");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -511,6 +512,19 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         }
     }
 
+    if(priv) {
+        /* Make sure the privilege value is sane */
+        errno = 0;
+        privs = strtoul((const char *)priv, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid privilege value for quest: %s\n",
+                  (const char *)priv);
+            rv = -16;
+            goto err;
+        }
+    }
+
     /* Allocate space for the quest */
     tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
 
@@ -529,6 +543,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
 
     /* Copy over what we have so far */
     q->qid = (uint32_t)id_num;
+    q->privileges = privs;
     q->episode = (int)episode;
     q->event = (int)event_list;
     q->format = (int)format;
@@ -627,6 +642,7 @@ err:
     xmlFree(sflag);
     xmlFree(sctl);
     xmlFree(sdata);
+    xmlFree(priv);
     return rv;
 }
 
@@ -644,12 +660,13 @@ static int handle_description(xmlNode *n, sylverant_quest_category_t *c) {
 }
 
 static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
-    xmlChar *name, *type, *eps;
+    xmlChar *name, *type, *eps, *priv;
     char *token, *lasts;
     int rv = 0;
     uint32_t type_num;
     uint32_t episodes = SYLVERANT_QUEST_EP1 | SYLVERANT_QUEST_EP2 |
         SYLVERANT_QUEST_EP4;
+    uint32_t privs = 0;
     void *tmp;
     sylverant_quest_category_t *cat;
     int epnum;
@@ -658,6 +675,7 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
     name = xmlGetProp(n, XC"name");
     type = xmlGetProp(n, XC"type");
     eps = xmlGetProp(n, XC"episodes");
+    priv = xmlGetProp(n, XC"privileges");
 
     /* Make sure we have both of them... */
     if(!name || !type) {
@@ -686,6 +704,19 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
         debug(DBG_ERROR, "Invalid category type: %s\n", (char *)type);
         rv = -2;
         goto err;
+    }
+
+    if(priv) {
+        /* Make sure the privilege value is sane */
+        errno = 0;
+        privs = strtoul((const char *)priv, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid privilege value for category: %s\n",
+                  (const char *)priv);
+            rv = -8;
+            goto err;
+        }
     }
 
     /* Is there an episode list specified? */
@@ -740,6 +771,7 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
     /* Copy over what we have so far */
     cat->type = type_num;
     cat->episodes = episodes;
+    cat->privileges = privs;
 
     strncpy(cat->name, (const char *)name, 31);
     cat->name[31] = '\0';
@@ -773,6 +805,7 @@ static int handle_category(xmlNode *n, sylverant_quest_list_t *l) {
     }
 
 err:
+    xmlFree(priv);
     xmlFree(name);
     xmlFree(type);
     xmlFree(eps);

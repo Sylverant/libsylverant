@@ -61,6 +61,7 @@ typedef struct sylverant_quest {
     uint32_t qid;
     uint32_t versions;
     uint32_t flags;
+    uint32_t privileges;
 
     char name[32];
     char desc[112];
@@ -99,6 +100,7 @@ typedef struct sylverant_qcat {
 
     uint32_t type;
     uint32_t episodes;
+    uint32_t privileges;
     int quest_count;
     sylverant_quest_t *quests;
 } sylverant_quest_category_t;
