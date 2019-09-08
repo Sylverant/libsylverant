@@ -161,6 +161,7 @@ typedef struct sylverant_shipcfg {
     int event_count;
     int limits_count;
     int limits_default;
+    uint32_t privileges;
 } sylverant_ship_t;
 
 /* Read the configuration for the login server, shipgate, and patch server. */

@@ -948,7 +948,7 @@ static int handle_smutdata(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert;
+    xmlChar *name, *blocks, *key, *gms, *menu, *gmonly, *cert, *priv;
     int rv;
     unsigned long rv2;
     xmlNode *n2;
@@ -961,6 +961,7 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     menu = xmlGetProp(n, XC"menu");
     gmonly = xmlGetProp(n, XC"gmonly");
     cert = xmlGetProp(n, XC"cert");
+    priv = xmlGetProp(n, XC"privileges");
 
     if(!name || !blocks || !key || !gms || !gmonly || !menu || !cert) {
         debug(DBG_ERROR, "Required attribute of ship not found\n");
@@ -1001,6 +1002,21 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
     }
 
     cur->blocks = (int)rv2;
+
+    /* Parse out the privilege level, if one is provided. */
+    if(priv) {
+        errno = 0;
+        rv2 = strtoul((char *)priv, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid privilege level given: %s\n",
+                  (char *)priv);
+            rv = -22;
+            goto err;
+        }
+
+        cur->privileges = (uint32_t)rv2;
+    }
 
     /* Parse out the children of the <ship> tag. */
     n2 = n->children;
