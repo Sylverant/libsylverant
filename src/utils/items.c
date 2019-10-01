@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2014, 2015, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014, 2015, 2016, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -354,6 +354,56 @@ static int handle_max(xmlNode *n, int *max, int *min) {
     return rv;
 }
 
+static int handle_max_ver(xmlNode *n, int *max, int *min, int *ver) {
+    xmlChar *val;
+    int rv = 0;
+
+    val = xmlGetProp(n, XC"version");
+    if(!val) {
+        debug(DBG_ERROR, "Missing attribute 'version' at line %hu\n", n->line);
+        return -2;
+    }
+
+    if(!xmlStrcmp(val, XC"v1"))
+        *ver = ITEM_VERSION_V1;
+    else if(!xmlStrcmp(val, XC"v2"))
+        *ver = ITEM_VERSION_V2;
+    else if(!xmlStrcmp(val, XC"gc"))
+        *ver = ITEM_VERSION_GC;
+    else {
+        debug(DBG_ERROR, "Invalid value for attribute 'version' at line %hu: "
+              "%s\n", n->line, (char *)val);
+        return -3;
+    }
+
+    /* Grab the attributes */
+    if((val = xmlGetProp(n, XC"max"))) {
+        errno = 0;
+        *max = (int)strtol((char *)val, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid value for max: %s\n", (char *)max);
+            rv = -1;
+        }
+
+        xmlFree(val);
+    }
+
+    if((val = xmlGetProp(n, XC"min"))) {
+        errno = 0;
+        *min = (int)strtol((char *)val, NULL, 0);
+
+        if(errno) {
+            debug(DBG_ERROR, "Invalid value for min: %s\n", (char *)min);
+            rv = -1;
+        }
+
+        xmlFree(val);
+    }
+
+    return rv;
+}
+
 static int handle_weapon(xmlNode *n, sylverant_weapon_t *w) {
     int rv = 0;
 
@@ -378,6 +428,11 @@ static int handle_weapon(xmlNode *n, sylverant_weapon_t *w) {
         else if(!xmlStrcmp(n->name, XC"attributes")) {
             if(handle_attributes(n, &w->valid_attrs)) {
                 return -3;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"hit")) {
+            if(handle_max(n, &w->max_hit, &w->min_hit)) {
+                return -5;
             }
         }
         else if(handle_common_tag(n, (sylverant_item_t *)w)) {
@@ -664,6 +719,10 @@ static int handle_item(xmlNode *n, sylverant_limits_t *l, int swap) {
             w->base.reject_max = 0;
             w->base.versions = 0;
             w->valid_attrs = FULL_ATTR_VALID;
+            w->max_percents = INT_MAX;
+            w->min_percents = INT_MIN;
+            w->max_hit = INT_MAX;
+            w->min_hit = INT_MIN;
             TAILQ_INSERT_TAIL(l->weapons, cur_item, qentry);
 
             if(handle_weapon(n, w)) {
@@ -843,6 +902,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     sylverant_limits_t *rv;
     int swap_code, irv = 0;
     xmlChar *bo, *def_act, *srank, *pbs, *wrap;
+    int ver, min, max;
 
     /* I'm lazy, and don't feel like typing this that many times. */
     typedef struct sylverant_item_queue iq_t;
@@ -892,6 +952,18 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     /* Set the default behavior for photon blasts/colors */
     rv->default_cpb = rv->default_rpb = rv->default_lpb = 0xFF;
     rv->default_colors = 0xFFFF;
+    rv->def_min_percent_v1 = INT_MIN;
+    rv->def_max_percent_v1 = INT_MAX;
+    rv->def_min_hit_v1 = INT_MIN;
+    rv->def_max_hit_v1 = INT_MAX;
+    rv->def_min_percent_v2 = INT_MIN;
+    rv->def_max_percent_v2 = INT_MAX;
+    rv->def_min_hit_v2 = INT_MIN;
+    rv->def_max_hit_v2 = INT_MAX;
+    rv->def_min_percent_gc = INT_MIN;
+    rv->def_max_percent_gc = INT_MAX;
+    rv->def_min_hit_gc = INT_MIN;
+    rv->def_max_hit_gc = INT_MAX;
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
@@ -1048,6 +1120,58 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"default_percents")) {
+            max = INT_MAX;
+            min = INT_MIN;
+
+            if(handle_max_ver(n, &max, &min, &ver)) {
+                irv = -14;
+                goto err_doc;
+            }
+
+            switch(ver) {
+                case ITEM_VERSION_V1:
+                    rv->def_max_percent_v1 = max;
+                    rv->def_min_percent_v1 = min;
+                    break;
+
+                case ITEM_VERSION_V2:
+                    rv->def_max_percent_v2 = max;
+                    rv->def_min_percent_v2 = min;
+                    break;
+
+                case ITEM_VERSION_GC:
+                    rv->def_max_percent_gc = max;
+                    rv->def_min_percent_gc = min;
+                    break;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"default_hit")) {
+            max = INT_MAX;
+            min = INT_MIN;
+
+            if(handle_max_ver(n, &max, &min, &ver)) {
+                irv = -15;
+                goto err_doc;
+            }
+
+            switch(ver) {
+                case ITEM_VERSION_V1:
+                    rv->def_max_hit_v1 = max;
+                    rv->def_min_hit_v1 = min;
+                    break;
+
+                case ITEM_VERSION_V2:
+                    rv->def_max_hit_v2 = max;
+                    rv->def_min_hit_v2 = min;
+                    break;
+
+                case ITEM_VERSION_GC:
+                    rv->def_max_hit_gc = max;
+                    rv->def_min_hit_gc = min;
+                    break;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -1126,6 +1250,162 @@ static void sylverant_real_free_limits(void *ll) {
 int sylverant_free_limits(sylverant_limits_t *l) {
     ref_release(l);
     return 0;
+}
+
+static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
+                          sylverant_weapon_t *w, int ver) {
+    int hit_min = 0, hit_max = 0, perc_min = 0, perc_max = 0;
+    int tmp;
+
+    /* If we have a match in the XML, use it first. */
+    if(w) {
+        if(w->max_hit != INT_MAX) {
+            if((i->data_b[6] == 5 && (s8)i->data_b[7] > w->max_hit) ||
+               (i->data_b[8] == 5 && (s8)i->data_b[9] > w->max_hit) ||
+               (i->data_b[10] == 5 && (s8)i->data_b[11] > w->max_hit))
+                return 0;
+
+            hit_max = 1;
+        }
+
+        if(w->min_hit != INT_MIN) {
+            if((i->data_b[6] == 5 && (s8)i->data_b[7] < w->min_hit) ||
+               (i->data_b[8] == 5 && (s8)i->data_b[9] < w->min_hit) ||
+               (i->data_b[10] == 5 && (s8)i->data_b[11] < w->min_hit))
+                return 0;
+
+            hit_min = 1;
+        }
+
+        if(w->max_percents != INT_MAX) {
+            if(i->data_b[6] && (s8)i->data_b[7] > w->max_percents)
+                if(i->data_b[6] != 5 || !hit_max)
+                    return 0;
+
+            if(i->data_b[8] && (s8)i->data_b[9] > w->max_percents)
+                if(i->data_b[8] != 5 || !hit_max)
+                    return 0;
+
+            if(i->data_b[10] && (s8)i->data_b[11] > w->max_percents)
+                if(i->data_b[10] != 5 || !hit_max)
+                    return 0;
+
+            perc_max = 1;
+        }
+
+        if(w->min_percents != INT_MIN) {
+            if(i->data_b[6] && (s8)i->data_b[7] < w->min_percents)
+                if(i->data_b[6] != 5 || !hit_min)
+                    return 0;
+
+            if(i->data_b[8] && (s8)i->data_b[9] < w->min_percents)
+                if(i->data_b[8] != 5 || !hit_min)
+                    return 0;
+
+            if(i->data_b[10] && (s8)i->data_b[11] < w->min_percents)
+                if(i->data_b[10] != 5 || !hit_min)
+                    return 0;
+
+            perc_min = 1;
+        }
+    }
+
+    /* If we didn't have a match in the XML for any of the values, then use the
+       defaults, if they're specified... */
+    if(!hit_max) {
+        tmp = INT_MAX;
+
+        if(ver == ITEM_VERSION_V1)
+            tmp = l->def_max_hit_v1;
+        else if(ver == ITEM_VERSION_V2)
+            tmp = l->def_max_hit_v2;
+        else if(ver == ITEM_VERSION_GC)
+            tmp = l->def_max_hit_gc;
+
+        if(tmp != INT_MAX) {
+            if((i->data_b[6] == 5 && (s8)i->data_b[7] > tmp) ||
+               (i->data_b[8] == 5 && (s8)i->data_b[9] > tmp) ||
+               (i->data_b[10] == 5 && (s8)i->data_b[11] > tmp))
+                return 0;
+
+            hit_max = 1;
+        }
+    }
+
+    if(!hit_min) {
+        tmp = INT_MIN;
+
+        if(ver == ITEM_VERSION_V1)
+            tmp = l->def_min_hit_v1;
+        else if(ver == ITEM_VERSION_V2)
+            tmp = l->def_min_hit_v2;
+        else if(ver == ITEM_VERSION_GC)
+            tmp = l->def_min_hit_gc;
+
+        if(tmp != INT_MIN) {
+            if((i->data_b[6] == 5 && (s8)i->data_b[7] < tmp) ||
+               (i->data_b[8] == 5 && (s8)i->data_b[9] < tmp) ||
+               (i->data_b[10] == 5 && (s8)i->data_b[11] < tmp))
+                return 0;
+
+            hit_min = 1;
+        }
+    }
+
+    if(!perc_max) {
+        tmp = INT_MAX;
+
+        if(ver == ITEM_VERSION_V1)
+            tmp = l->def_max_percent_v1;
+        else if(ver == ITEM_VERSION_V2)
+            tmp = l->def_max_percent_v2;
+        else if(ver == ITEM_VERSION_GC)
+            tmp = l->def_max_percent_gc;
+
+        if(i->data_b[6] && (s8)i->data_b[7] > tmp)
+            if(i->data_b[6] != 5 || !hit_max)
+                return 0;
+
+        if(i->data_b[8] && (s8)i->data_b[9] > tmp)
+            if(i->data_b[8] != 5 || !hit_max)
+                return 0;
+
+        if(i->data_b[10] && (s8)i->data_b[11] > tmp)
+            if(i->data_b[10] != 5 || !hit_max)
+                return 0;
+    }
+
+    if(!perc_min) {
+        tmp = INT_MIN;
+
+        if(ver == ITEM_VERSION_V1)
+            tmp = l->def_min_percent_v1;
+        else if(ver == ITEM_VERSION_V2)
+            tmp = l->def_min_percent_v2;
+        else if(ver == ITEM_VERSION_GC)
+            tmp = l->def_min_percent_gc;
+
+        if(i->data_b[6] && (s8)i->data_b[7] < tmp)
+            if(i->data_b[6] != 5 || !hit_min)
+                return 0;
+
+        if(i->data_b[8] && (s8)i->data_b[9] < tmp)
+            if(i->data_b[8] != 5 || !hit_min)
+                return 0;
+
+        if(i->data_b[10] && (s8)i->data_b[11] < tmp)
+            if(i->data_b[10] != 5 || !hit_min)
+                return 0;
+    }
+
+    /* Make sure percents are evenly divisible by 5. */
+    if(((s8)i->data_b[7]) % 5 || ((s8)i->data_b[9]) % 5 ||
+       ((s8)i->data_b[11] % 5)) {
+        return 0;
+    }
+
+    /* Everything passed up to this point, so the percents look fine... */
+    return 1;
 }
 
 static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
@@ -1247,7 +1527,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
         if(j->item_code == ic && (j->versions & version) == version) {
             w = (sylverant_weapon_t *)j;
 
-            /* Autoreject if we're supposed to */
+            /* Auto-reject if we're supposed to */
             if(j->auto_reject) {
                 return 0;
             }
@@ -1261,29 +1541,8 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check each percent */
-            if(!is_named_srank) {
-                if(w->max_percents != -1) {
-                    if((i->data_b[6] && (s8)i->data_b[7] > w->max_percents) ||
-                       (i->data_b[8] && (s8)i->data_b[9] > w->max_percents) ||
-                       (i->data_b[10] && (s8)i->data_b[11] > w->max_percents)) {
-                        return 0;
-                    }
-                }
-
-                if(w->min_percents != -1) {
-                    if((i->data_b[6] && (s8)i->data_b[7] < w->min_percents) ||
-                       (i->data_b[8] && (s8)i->data_b[9] < w->min_percents) ||
-                       (i->data_b[10] && (s8)i->data_b[11] < w->min_percents)) {
-                        return 0;
-                    }
-                }
-
-                /* Make sure percents are evenly divisible by 5. */
-                if(((s8)i->data_b[7]) % 5 || ((s8)i->data_b[9]) % 5 ||
-                   ((s8)i->data_b[11] % 5)) {
-                    return 0;
-                }
-            }
+            if(!is_named_srank && !check_percents(l, i, w, version))
+                return 0;
 
             /* Check if the attribute of the weapon is valid */
             tmp = i->data_b[4] & 0x3F;
@@ -1299,6 +1558,11 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             return 1;
         }
     }
+
+    /* If we get here, the item isn't listed. If we have defaults set, it still
+       needs to be checked against them... */
+    if(!is_named_srank && !check_percents(l, i, NULL, version))
+        return 0;
 
     /* If we don't find it, do whatever the default is */
     return l->default_behavior;

@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2018 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -73,6 +73,8 @@ typedef struct sylverant_weapon {
     int min_grind;
     int max_percents;
     int min_percents;
+    int min_hit;
+    int max_hit;
     uint64_t valid_attrs;
 } sylverant_weapon_t;
 
@@ -153,6 +155,18 @@ typedef struct sylverant_limits {
     uint8_t default_rpb;
     uint8_t default_lpb;
     uint8_t check_wrap;
+    int def_min_percent_v1;
+    int def_max_percent_v1;
+    int def_min_hit_v1;
+    int def_max_hit_v1;
+    int def_min_percent_v2;
+    int def_max_percent_v2;
+    int def_min_hit_v2;
+    int def_max_hit_v2;
+    int def_min_percent_gc;
+    int def_max_percent_gc;
+    int def_min_hit_gc;
+    int def_max_hit_gc;
 } sylverant_limits_t;
 
 /* Weapon Attributes -- Stored in byte #4 of weapons. */
