@@ -1275,7 +1275,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             is_js = 1;
 
             if(l->check_j_sword) {
-                tmp = i->data_w[5];
+                tmp = (i->data_b[10] << 8) | i->data_b[11];
 
                 /* If the kill count bit isn't set in the right percentage slot,
                    bail. */
@@ -1287,10 +1287,11 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
 
                 /* Check that the kill count is set high enough. Technically,
                    this is not quite enough kills (23,000 are supposed to be
-                   needed to unseal, and this corresponds to 22,784), but some
-                   have been spotted with slightly low kill counts. This might
+                   needed to unseal, and this corresponds to 22,016), but some
+                   have been spotted with slightly low kill counts because of
+                   what the game does during the unsealing part... This might
                    need adjusting after some testing, but it'll work for now. */
-                if(tmp < 0xD900) {
+                if(tmp < 0xD600) {
                     debug(DBG_WARN, "TSUMIKIRI J-SWORD with too few kills\n");
                     return 0;
                 }
@@ -1300,7 +1301,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             is_js = 1;
 
             if(l->check_j_sword) {
-                tmp = i->data_w[5];
+                tmp = (i->data_b[10] << 8) | i->data_b[11];
 
                 /* If the kill count bit isn't set in the right percentage slot,
                    bail. */
@@ -1759,6 +1760,16 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
     return l->default_behavior;
 }
 
+static int check_mag_v3(sylverant_limits_t *l, sylverant_iitem_t *i,
+                        uint32_t version, uint32_t ic) {
+    /* This shouldn't happen... */
+    if(version < ITEM_VERSION_GC)
+        return 1;
+
+    /* Todo: Finish this sometime. */
+    return 1;
+}
+
 static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
                         uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
@@ -1934,7 +1945,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             return check_mag_v2(l, i, version, ic);
 
         case ITEM_VERSION_GC:
-            return 1;
+            return check_mag_v3(l, i, version, ic);
     }
 
     /* This shouldn't ever happen... */
