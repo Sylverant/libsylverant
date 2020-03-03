@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -167,6 +167,7 @@ typedef struct sylverant_limits {
     int def_max_percent_gc;
     int def_min_hit_gc;
     int def_max_hit_gc;
+    int check_j_sword;
 } sylverant_limits_t;
 
 /* Weapon Attributes -- Stored in byte #4 of weapons. */

@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2010, 2011, 2014, 2015, 2016, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014, 2015, 2016, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -901,7 +901,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     xmlNode *n;
     sylverant_limits_t *rv;
     int swap_code, irv = 0;
-    xmlChar *bo, *def_act, *srank, *pbs, *wrap;
+    xmlChar *bo, *def_act, *srank, *pbs, *wrap, *js;
     int ver, min, max;
 
     /* I'm lazy, and don't feel like typing this that many times. */
@@ -1012,6 +1012,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     srank = xmlGetProp(n, XC"check_sranks");
     pbs = xmlGetProp(n, XC"check_pbs");
     wrap = xmlGetProp(n, XC"check_wrap");
+    js = xmlGetProp(n, XC"check_jsword");
 
     if(!bo || !def_act || !srank || !pbs) {
         debug(DBG_ERROR, "items tag missing required attribute\n");
@@ -1021,6 +1022,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         xmlFree(srank);
         xmlFree(pbs);
         xmlFree(wrap);
+        xmlFree(js);
 
         goto err_doc;
     }
@@ -1087,12 +1089,20 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         rv->check_wrap = 2;
     }
 
+    if(js) {
+        if(!xmlStrcmp(js, XC"true"))
+            rv->check_j_sword = 1;
+        else if(xmlStrcmp(js, XC"false"))
+            debug(DBG_WARN, "Unknown value for check_jsword, assuming false\n");
+    }
+
     /* We're done with them, so clean them up... */
     xmlFree(bo);
     xmlFree(def_act);
     xmlFree(srank);
     xmlFree(pbs);
     xmlFree(wrap);
+    xmlFree(js);
 
     n = n->children;
     while(n) {
@@ -1253,12 +1263,60 @@ int sylverant_free_limits(sylverant_limits_t *l) {
 }
 
 static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
-                          sylverant_weapon_t *w, int ver) {
+                          sylverant_weapon_t *w, int ver, uint32_t ic) {
     int hit_min = 0, hit_max = 0, perc_min = 0, perc_max = 0;
-    int tmp;
+    int tmp, is_js = 0;
+
+    /* If we're dealing with GC, we have to check if we're looking at a
+       TSUMIKIRI J-SWORD or SEALED J-SWORD, and treat them specially because of
+       the kill count that is stored where percentages normally are. */
+    if(ver == ITEM_VERSION_GC) {
+        if(ic == 0x003200) {
+            is_js = 1;
+
+            if(l->check_j_sword) {
+                tmp = i->data_w[5];
+
+                /* If the kill count bit isn't set in the right percentage slot,
+                   bail. */
+                if(!(tmp & 0x8000)) {
+                    debug(DBG_WARN, "TSUMIKIRI J-SWORD without kill count "
+                                    "bit set\n");
+                    return 0;
+                }
+
+                /* Check that the kill count is set high enough. Technically,
+                   this is not quite enough kills (23,000 are supposed to be
+                   needed to unseal, and this corresponds to 22,784), but some
+                   have been spotted with slightly low kill counts. This might
+                   need adjusting after some testing, but it'll work for now. */
+                if(tmp < 0xD900) {
+                    debug(DBG_WARN, "TSUMIKIRI J-SWORD with too few kills\n");
+                    return 0;
+                }
+            }
+        }
+        else if(ic == 0x003300) {
+            is_js = 1;
+
+            if(l->check_j_sword) {
+                tmp = i->data_w[5];
+
+                /* If the kill count bit isn't set in the right percentage slot,
+                   bail. */
+                if(!(tmp & 0x8000)) {
+                    debug(DBG_WARN, "SEALED J-SWORD without kill count bit "
+                                    "set \n");
+                    return 0;
+                }
+            }
+        }
+    }
 
     /* If we have a match in the XML, use it first. */
     if(w) {
+        /* For hit, we don't have to check if the item is a SEALED or TSUMIKIRI
+           J-SWORD since the percent type byte will never be 5 in that case. */
         if(w->max_hit != INT_MAX) {
             if((i->data_b[6] == 5 && (s8)i->data_b[7] > w->max_hit) ||
                (i->data_b[8] == 5 && (s8)i->data_b[9] > w->max_hit) ||
@@ -1287,7 +1345,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
                     return 0;
 
             if(i->data_b[10] && (s8)i->data_b[11] > w->max_percents)
-                if(i->data_b[10] != 5 || !hit_max)
+                if((i->data_b[10] != 5 || !hit_max) && !is_js)
                     return 0;
 
             perc_max = 1;
@@ -1303,7 +1361,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
                     return 0;
 
             if(i->data_b[10] && (s8)i->data_b[11] < w->min_percents)
-                if(i->data_b[10] != 5 || !hit_min)
+                if((i->data_b[10] != 5 || !hit_min) && !is_js)
                     return 0;
 
             perc_min = 1;
@@ -1371,7 +1429,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
                 return 0;
 
         if(i->data_b[10] && (s8)i->data_b[11] > tmp)
-            if(i->data_b[10] != 5 || !hit_max)
+            if((i->data_b[10] != 5 || !hit_max) && !is_js)
                 return 0;
     }
 
@@ -1394,13 +1452,13 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
                 return 0;
 
         if(i->data_b[10] && (s8)i->data_b[11] < tmp)
-            if(i->data_b[10] != 5 || !hit_min)
+            if((i->data_b[10] != 5 || !hit_min) && !is_js)
                 return 0;
     }
 
     /* Make sure percents are evenly divisible by 5. */
     if(((s8)i->data_b[7]) % 5 || ((s8)i->data_b[9]) % 5 ||
-       ((s8)i->data_b[11] % 5)) {
+       (((s8)i->data_b[11] % 5) && !is_js)) {
         return 0;
     }
 
@@ -1541,7 +1599,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
             }
 
             /* Check each percent */
-            if(!is_named_srank && !check_percents(l, i, w, version))
+            if(!is_named_srank && !check_percents(l, i, w, version, ic))
                 return 0;
 
             /* Check if the attribute of the weapon is valid */
@@ -1561,7 +1619,7 @@ static int check_weapon(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* If we get here, the item isn't listed. If we have defaults set, it still
        needs to be checked against them... */
-    if(!is_named_srank && !check_percents(l, i, NULL, version))
+    if(!is_named_srank && !check_percents(l, i, NULL, version, ic))
         return 0;
 
     /* If we don't find it, do whatever the default is */
@@ -1701,15 +1759,15 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
     return l->default_behavior;
 }
 
-static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
-                     uint32_t version, uint32_t ic) {
+static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
+                        uint32_t version, uint32_t ic) {
     sylverant_item_t *j;
     sylverant_mag_t *m;
     uint16_t tmp;
     int level = 0;
     int cpb, rpb, lpb, hascpb, hasrpb, haslpb;
 
-    /* We don't support GC or later here for now... */
+    /* This shouldn't happen... */
     if(version >= ITEM_VERSION_GC)
         return 1;
 
@@ -1866,6 +1924,21 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* If we don't find it, do whatever the default is */
     return l->default_behavior;
+}
+
+static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
+                     uint32_t version, uint32_t ic) {
+    switch(version) {
+        case ITEM_VERSION_V1:
+        case ITEM_VERSION_V2:
+            return check_mag_v2(l, i, version, ic);
+
+        case ITEM_VERSION_GC:
+            return 1;
+    }
+
+    /* This shouldn't ever happen... */
+    return 1;
 }
 
 static int check_tool(sylverant_limits_t *l, sylverant_iitem_t *i,
