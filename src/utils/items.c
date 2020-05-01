@@ -1762,12 +1762,146 @@ static int check_guard(sylverant_limits_t *l, sylverant_iitem_t *i,
 
 static int check_mag_v3(sylverant_limits_t *l, sylverant_iitem_t *i,
                         uint32_t version, uint32_t ic) {
+    sylverant_item_t *j;
+    sylverant_mag_t *m;
+    uint16_t tmp;
+    int level = 0;
+    int cpb, rpb, lpb, hascpb, hasrpb, haslpb;
+
     /* This shouldn't happen... */
     if(version < ITEM_VERSION_GC)
         return 1;
 
-    /* Todo: Finish this sometime. */
-    return 1;
+    /* Grab the real item type. This is much simpler than in the DC case because
+       we don't have to deal with the mess of v1 compatibility. */
+    ic &= 0x0000FFFF;
+
+    /* Grab the photon blasts */
+    cpb = i->data_b[3] & 0x07;
+    rpb = (i->data_b[3] >> 3) & 0x07;
+    lpb = (i->data_b[3] >> 6) & 0x03;
+
+    /* Figure out what slots should have PBs */
+    hascpb = i->data2_b[1] & 0x01;
+    hasrpb = i->data2_b[1] & 0x02;
+    haslpb = i->data2_b[1] & 0x04;
+
+    /* If we're supposed to check for obviously hacked PBs, do so */
+    if(l->check_pbs) {
+        /* Disallow hacked photon blasts (that likely crash v1 clients) */
+        if(cpb > 5 || rpb > 5)
+            return 0;
+
+        /* Make sure there's no overlap between center and right (left can't
+           overlap at all by design) */
+        if(hascpb && hasrpb && cpb == rpb)
+            return 0;
+    }
+
+    /* Find the item in our list, if its there */
+    TAILQ_FOREACH(j, l->mags, qentry) {
+        if(j->item_code == ic && (j->versions & version) == version) {
+            m = (sylverant_mag_t *)j;
+
+            /* Autoreject if we're supposed to */
+            if(j->auto_reject)
+                return 0;
+
+            /* Check the mag's DEF */
+            tmp = (i->data_b[4] | (i->data_b[5] << 8)) & 0x7FFF;
+            tmp /= 100;
+            level += tmp;
+
+            if((m->max_def != -1 && tmp > m->max_def) ||
+               (m->min_def != -1 && tmp < m->min_def))
+                return 0;
+
+            /* Check the mag's POW */
+            tmp = (i->data_b[6] | (i->data_b[7] << 8)) & 0x7FFF;
+            tmp /= 100;
+            level += tmp;
+
+            if((m->max_pow != -1 && tmp > m->max_pow) ||
+               (m->min_pow != -1 && tmp < m->min_pow))
+                return 0;
+
+            /* Check the mag's DEX */
+            tmp = (i->data_b[8] | (i->data_b[9] << 8)) & 0x7FFF;
+            tmp /= 100;
+            level += tmp;
+
+            if((m->max_dex != -1 && tmp > m->max_dex) ||
+               (m->min_dex != -1 && tmp < m->min_dex))
+                return 0;
+
+            /* Check the mag's MIND */
+            tmp = (i->data_b[10] | (i->data_b[11] << 8)) & 0x7FFF;
+            tmp /= 100;
+            level += tmp;
+
+            if((m->max_mind != -1 && tmp > m->max_mind) ||
+               (m->min_mind != -1 && tmp < m->min_mind))
+                return 0;
+
+            /* Check the level */
+            if((m->max_level != -1 && level > m->max_level) ||
+               (m->min_level != -1 && level < m->min_level))
+                return 0;
+
+            /* Check the IQ */
+            tmp = i->data2_b[2];
+            if((m->max_iq != -1 && tmp > m->max_iq) ||
+               (m->min_iq != -1 && tmp < m->min_iq))
+                return 0;
+
+            /* Check the synchro */
+            tmp = i->data2_b[3];
+            if((m->max_synchro != -1 && tmp > m->max_synchro) ||
+               (m->min_synchro != -1 && tmp < m->min_synchro))
+                return 0;
+
+            /* Figure out what the real left PB is... This is kinda ugly... */
+            if(haslpb) {
+                if(cpb <= lpb && rpb <= lpb) {
+                    lpb += 2;
+                }
+                else if(cpb <= lpb) {
+                    ++lpb;
+
+                    if(rpb == lpb)
+                        ++lpb;
+                }
+                else if(rpb <= lpb) {
+                    ++lpb;
+
+                    if(cpb == lpb)
+                        ++lpb;
+                }
+            }
+
+            /* Now, actually make sure the PBs that are on there are safe. */
+            if(hascpb && !(m->allowed_cpb & (1 << cpb)))
+                return 0;
+
+            if(hasrpb && !(m->allowed_rpb & (1 << rpb)))
+                return 0;
+
+            if(haslpb && !(m->allowed_lpb & (1 << lpb)))
+                return 0;
+
+            /* Parse out what the color is and check it */
+            tmp = i->data2_b[0];
+
+            if(!(m->allowed_colors & (1 << tmp)))
+                return 0;
+
+            /* If we haven't rejected yet, accept */
+            return 1;
+        }
+    }
+
+    /* If we don't find it, do whatever the default is */
+    return l->default_behavior;
 }
 
 static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
@@ -1784,12 +1918,10 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
 
     /* Grab the real item type, if its a v2 item, otherwise chop down to only
        16-bits */
-    if(i->data_b[1] == 0x00 && i->data_b[2] >= 0xC9) {
+    if(i->data_b[1] == 0x00 && i->data_b[2] >= 0xC9)
         ic = 0x02 | (((i->data_b[2] - 0xC9) + 0x2C) << 8);
-    }
-    else {
+    else
         ic = 0x02 | (i->data_b[1] << 8);
-    }
 
     /* Grab the photon blasts */
     cpb = i->data_b[3] & 0x07;
@@ -1804,15 +1936,13 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
     /* If we're supposed to check for obviously hacked PBs, do so */
     if(l->check_pbs) {
         /* Disallow hacked photon blasts (that likely crash v1 clients) */
-        if(cpb > 5 || rpb > 5) {
+        if(cpb > 5 || rpb > 5)
             return 0;
-        }
 
         /* Make sure there's no overlap between center and right (left can't
            overlap at all by design) */
-        if(hascpb && hasrpb && cpb == rpb) {
+        if(hascpb && hasrpb && cpb == rpb)
             return 0;
-        }
     }
 
     /* Find the item in our list, if its there */
@@ -1821,9 +1951,8 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
             m = (sylverant_mag_t *)j;
 
             /* Autoreject if we're supposed to */
-            if(j->auto_reject) {
+            if(j->auto_reject)
                 return 0;
-            }
 
             /* Check the mag's DEF */
             tmp = (i->data_b[4] | (i->data_b[5] << 8)) & 0x7FFE;
@@ -1831,9 +1960,8 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
             level += tmp;
 
             if((m->max_def != -1 && tmp > m->max_def) ||
-               (m->min_def != -1 && tmp < m->min_def)) {
+               (m->min_def != -1 && tmp < m->min_def))
                 return 0;
-            }
 
             /* Check the mag's POW */
             tmp = (i->data_b[6] | (i->data_b[7] << 8)) & 0x7FFE;
@@ -1841,9 +1969,8 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
             level += tmp;
 
             if((m->max_pow != -1 && tmp > m->max_pow) ||
-               (m->min_pow != -1 && tmp < m->min_pow)) {
+               (m->min_pow != -1 && tmp < m->min_pow))
                 return 0;
-            }
 
             /* Check the mag's DEX */
             tmp = (i->data_b[8] | (i->data_b[9] << 8)) & 0x7FFE;
@@ -1851,9 +1978,8 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
             level += tmp;
 
             if((m->max_dex != -1 && tmp > m->max_dex) ||
-               (m->min_dex != -1 && tmp < m->min_dex)) {
+               (m->min_dex != -1 && tmp < m->min_dex))
                 return 0;
-            }
 
             /* Check the mag's MIND */
             tmp = (i->data_b[10] | (i->data_b[11] << 8)) & 0x7FFE;
@@ -1861,29 +1987,25 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
             level += tmp;
 
             if((m->max_mind != -1 && tmp > m->max_mind) ||
-               (m->min_mind != -1 && tmp < m->min_mind)) {
+               (m->min_mind != -1 && tmp < m->min_mind))
                 return 0;
-            }
 
             /* Check the level */
             if((m->max_level != -1 && level > m->max_level) ||
-               (m->min_level != -1 && level < m->min_level)) {
+               (m->min_level != -1 && level < m->min_level))
                 return 0;
-            }
 
             /* Check the IQ */
             tmp = i->data2_b[0] | (i->data2_b[1] << 8);
             if((m->max_iq != -1 && tmp > m->max_iq) ||
-               (m->min_iq != -1 && tmp < m->min_iq)) {
+               (m->min_iq != -1 && tmp < m->min_iq))
                 return 0;
-            }
 
             /* Check the synchro */
             tmp = (i->data2_b[2] | (i->data2_b[3] << 8)) & 0x7FFF;
             if((m->max_synchro != -1 && tmp > m->max_synchro) ||
-               (m->min_synchro != -1 && tmp < m->min_synchro)) {
+               (m->min_synchro != -1 && tmp < m->min_synchro))
                 return 0;
-            }
 
             /* Figure out what the real left PB is... This is kinda ugly... */
             if(haslpb) {
@@ -1893,40 +2015,33 @@ static int check_mag_v2(sylverant_limits_t *l, sylverant_iitem_t *i,
                 else if(cpb <= lpb) {
                     ++lpb;
 
-                    if(rpb == lpb) {
+                    if(rpb == lpb)
                         ++lpb;
-                    }
                 }
                 else if(rpb <= lpb) {
                     ++lpb;
 
-                    if(cpb == lpb) {
+                    if(cpb == lpb)
                         ++lpb;
-                    }
                 }
             }
 
-            /* Now, actually make sure that things are happy with the pbs that
-               are actually selected */
-            if(hascpb && !(m->allowed_cpb & (1 << cpb))) {
+            /* Now, actually make sure the PBs that are on there are safe. */
+            if(hascpb && !(m->allowed_cpb & (1 << cpb)))
                 return 0;
-            }
 
-            if(hasrpb && !(m->allowed_rpb & (1 << rpb))) {
+            if(hasrpb && !(m->allowed_rpb & (1 << rpb)))
                 return 0;
-            }
 
-            if(haslpb && !(m->allowed_lpb & (1 << lpb))) {
+            if(haslpb && !(m->allowed_lpb & (1 << lpb)))
                 return 0;
-            }
 
             /* Parse out what the color is and check it */
             tmp = (i->data_b[4] & 0x01) | ((i->data_b[6] & 0x01) << 1) |
                 ((i->data_b[8] & 0x01) << 2) | ((i->data_b[10] & 0x01) << 3);
 
-            if(!(m->allowed_colors & (1 << tmp))) {
+            if(!(m->allowed_colors & (1 << tmp)))
                 return 0;
-            }
 
             /* If we haven't rejected yet, accept */
             return 1;
