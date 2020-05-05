@@ -1254,6 +1254,11 @@ static void sylverant_real_free_limits(void *ll) {
         l->tools = NULL;
     }
 
+    if(l->name) {
+        free(l->name);
+        l->name = NULL;
+    }
+
     /* The structure itself will be freed by the reference counting code. */
 }
 
