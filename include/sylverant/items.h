@@ -168,6 +168,8 @@ typedef struct sylverant_limits {
     int def_min_hit_gc;
     int def_max_hit_gc;
     int check_j_sword;
+
+    char *name;
 } sylverant_limits_t;
 
 /* Weapon Attributes -- Stored in byte #4 of weapons. */
