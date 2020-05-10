@@ -169,7 +169,7 @@ err:
     return rv;
 }
 
-static int handle_colors(xmlNode *n, uint16_t *valid) {
+static int handle_colors(xmlNode *n, uint32_t *valid) {
     xmlChar *colors;
     char *lasts, *tok;
     int i;
@@ -951,7 +951,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
 
     /* Set the default behavior for photon blasts/colors */
     rv->default_cpb = rv->default_rpb = rv->default_lpb = 0xFF;
-    rv->default_colors = 0xFFFF;
+    rv->default_colors = 0xFFFFFFFF;
     rv->def_min_percent_v1 = INT_MIN;
     rv->def_max_percent_v1 = INT_MAX;
     rv->def_min_hit_v1 = INT_MIN;

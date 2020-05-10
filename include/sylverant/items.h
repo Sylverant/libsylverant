@@ -126,10 +126,10 @@ typedef struct sylverant_mag {
     int min_synchro;
     int max_iq;
     int min_iq;
-    uint16_t allowed_colors;
     uint8_t allowed_cpb;
     uint8_t allowed_rpb;
     uint8_t allowed_lpb;
+    uint32_t allowed_colors;
 } sylverant_mag_t;
 
 /* Tool information structure. */
@@ -148,9 +148,9 @@ typedef struct sylverant_limits {
     struct sylverant_item_queue *tools;
 
     int default_behavior;
+    uint32_t default_colors;
     uint8_t check_srank_names;
     uint8_t check_pbs;
-    uint16_t default_colors;
     uint8_t default_cpb;
     uint8_t default_rpb;
     uint8_t default_lpb;
