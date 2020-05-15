@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -34,59 +34,52 @@ void debug_set_threshold(int level) {
 FILE *debug_set_file(FILE *fp) {
     FILE *ofp = dfp;
 
-    if(fp) {
+    if(fp)
         dfp = fp;
-    }
 
     return ofp;
 }
 
 void debug(int level, const char *fmt, ...) {
     va_list args;
-    struct timeval rawtime;
-    struct tm cooked;
 
-    /* If we don't have something set already, default to stdout. */
-    if(!dfp) {
+    /* If the default file we write to hasn't been initialized, set it to
+       stdout. */
+    if(!dfp)
         dfp = stdout;
-    }
 
     /* Make sure we want to receive messages at this level. */
-    if(level < min_level) {
+    if(level < min_level)
         return;
-    }
-
-    /* Get the timestamp */
-    gettimeofday(&rawtime, NULL);
-
-    /* Get UTC */
-    gmtime_r(&rawtime.tv_sec, &cooked);
-
-    /* Print the timestamp */
-    fprintf(dfp, "[%u:%02u:%02u: %02u:%02u:%02u.%03u]: ", cooked.tm_year + 1900,
-            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
-            cooked.tm_sec, (unsigned int)(rawtime.tv_usec / 1000));
 
     va_start(args, fmt);
-    vfprintf(dfp, fmt, args);
+    vfdebug(dfp, fmt, args);
     va_end(args);
-
-    fflush(dfp);
 }
 
 int fdebug(FILE *fp, int level, const char *fmt, ...) {
     va_list args;
+    int rv;
+
+    if(!fp || !fmt)
+        return -1;
+
+    if(level < min_level)
+        return 0;
+
+    va_start(args, fmt);
+    rv = vfdebug(fp, fmt, args);
+    va_end(args);
+
+    return rv;
+}
+
+int vfdebug(FILE *fp, const char *fmt, va_list args) {
     struct timeval rawtime;
     struct tm cooked;
 
-    if(!fp || !fmt) {
+    if(!fp || !fmt)
         return -1;
-    }
-
-    /* Make sure we want to receive messages at this level. */
-    if(level < min_level) {
-        return 0;
-    }
 
     /* Get the timestamp */
     gettimeofday(&rawtime, NULL);
@@ -99,11 +92,7 @@ int fdebug(FILE *fp, int level, const char *fmt, ...) {
             cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
             cooked.tm_sec, (unsigned int)(rawtime.tv_usec / 1000));
 
-    va_start(args, fmt);
     vfprintf(fp, fmt, args);
-    va_end(args);
-
     fflush(fp);
-
     return 0;
 }
