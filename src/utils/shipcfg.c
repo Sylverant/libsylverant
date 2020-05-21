@@ -1,8 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018,
-                  2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -477,21 +477,17 @@ static int handle_info(xmlNode *n, sylverant_ship_t *cur, int is_motd) {
     cur->info_files[count].desc = (char *)desc;
 
     /* Fill in the applicable versions */
-    if(!v1 || !xmlStrcmp(v1, XC"true")) {
+    if(!v1 || !xmlStrcmp(v1, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_V1;
-    }
 
-    if(!v2 || !xmlStrcmp(v2, XC"true")) {
+    if(!v2 || !xmlStrcmp(v2, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_V2;
-    }
 
-    if(!pc || !xmlStrcmp(pc, XC"true")) {
+    if(!pc || !xmlStrcmp(pc, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_PC;
-    }
 
-    if(!gc || !xmlStrcmp(gc, XC"true")) {
+    if(!gc || !xmlStrcmp(gc, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_GC;
-    }
 
     /* Parse the languages string, if given. */
     if(lang) {
@@ -693,7 +689,7 @@ static int handle_scripts(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *v1, *v2, *pc, *gc, *ep3, *bb, *dcnte;
+    xmlChar *v1, *v2, *pc, *gc, *ep3, *bb, *dcnte, *xb;
     int rv = 0;
 
     /* Grab the attributes of the tag. */
@@ -704,6 +700,7 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
     ep3 = xmlGetProp(n, XC"ep3");
     bb = xmlGetProp(n, XC"bb");
     dcnte = xmlGetProp(n, XC"dcnte");
+    xb = xmlGetProp(n, XC"xbox");
 
     /* Make sure we have the data */
     if(!v1 || !v2 || !pc || !gc || !ep3) {
@@ -713,33 +710,29 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
     }
 
     /* Parse everything out */
-    if(!xmlStrcmp(v1, XC"false")) {
+    if(!xmlStrcmp(v1, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOV1;
-    }
 
-    if(!xmlStrcmp(v2, XC"false")) {
+    if(!xmlStrcmp(v2, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOV2;
-    }
 
-    if(!xmlStrcmp(pc, XC"false")) {
+    if(!xmlStrcmp(pc, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOPC;
-    }
 
-    if(!xmlStrcmp(gc, XC"false")) {
+    if(!xmlStrcmp(gc, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOEP12;
-    }
 
-    if(!xmlStrcmp(ep3, XC"false")) {
+    if(!xmlStrcmp(ep3, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOEP3;
-    }
 
-    if(!bb || !xmlStrcmp(bb, XC"false")) {
+    if(!bb || !xmlStrcmp(bb, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOBB;
-    }
 
-    if(!dcnte || !xmlStrcmp(dcnte, XC"false")) {
+    if(!dcnte || !xmlStrcmp(dcnte, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NODCNTE;
-    }
+
+    if(!xb || !xmlStrcmp(xb, XC"false"))
+        cur->shipgate_flags |= SHIPGATE_FLAG_NOPSOX;
 
 err:
     xmlFree(v1);
@@ -749,6 +742,7 @@ err:
     xmlFree(ep3);
     xmlFree(bb);
     xmlFree(dcnte);
+    xmlFree(xb);
     return rv;
 }
 

@@ -1,7 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -35,6 +36,7 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOEP3     0x00000100
 #define SHIPGATE_FLAG_NOBB      0x00000200
 #define SHIPGATE_FLAG_NODCNTE   0x00000400
+#define SHIPGATE_FLAG_NOPSOX    0x00000800
 
 /* The first few (V1, V2, PC) are only valid on the ship server, whereas the
    last couple (Ep3, BB) are only valid on the login server. GC works either
