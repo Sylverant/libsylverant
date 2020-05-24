@@ -267,11 +267,12 @@ static int handle_common_tag(xmlNode *n, sylverant_item_t *i) {
         i->reject_max = 1;
     }
     else if(!xmlStrcmp(n->name, XC"versions")) {
-        xmlChar *v1, *v2, *gc;
+        xmlChar *v1, *v2, *gc, *xb;
 
         v1 = xmlGetProp(n, XC"v1");
         v2 = xmlGetProp(n, XC"v2");
         gc = xmlGetProp(n, XC"gc");
+        xb = xmlGetProp(n, XC"xbox");
 
         if(!v1 || !v2 || !gc) {
             debug(DBG_ERROR, "Required attribute of versions not found\n");
@@ -310,10 +311,23 @@ static int handle_common_tag(xmlNode *n, sylverant_item_t *i) {
             goto done_vers;
         }
 
+        if(xb) {
+            if(!xmlStrcmp(xb, XC"true")) {
+                i->versions |= ITEM_VERSION_XBOX;
+            }
+            else if(xmlStrcmp(xb, XC"false")) {
+                debug(DBG_ERROR, "Invalid value for attribute xbox: %s\n",
+                      (char *)xb);
+                rv = 0;
+                goto done_vers;
+            }
+        }
+
 done_vers:
         xmlFree(v1);
         xmlFree(v2);
         xmlFree(gc);
+        xmlFree(xb);
     }
     else {
         rv = 0;
@@ -370,6 +384,8 @@ static int handle_max_ver(xmlNode *n, int *max, int *min, int *ver) {
         *ver = ITEM_VERSION_V2;
     else if(!xmlStrcmp(val, XC"gc"))
         *ver = ITEM_VERSION_GC;
+    else if(!xmlStrcmp(val, XC"xbox"))
+        *ver = ITEM_VERSION_XBOX;
     else {
         debug(DBG_ERROR, "Invalid value for attribute 'version' at line %hu: "
               "%s\n", n->line, (char *)val);
@@ -1154,6 +1170,11 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
                     rv->def_max_percent_gc = max;
                     rv->def_min_percent_gc = min;
                     break;
+
+                case ITEM_VERSION_XBOX:
+                    rv->def_max_percent_xbox = max;
+                    rv->def_min_percent_xbox = min;
+                    break;
             }
         }
         else if(!xmlStrcmp(n->name, XC"default_hit")) {
@@ -1179,6 +1200,11 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
                 case ITEM_VERSION_GC:
                     rv->def_max_hit_gc = max;
                     rv->def_min_hit_gc = min;
+                    break;
+
+                case ITEM_VERSION_XBOX:
+                    rv->def_max_hit_xbox = max;
+                    rv->def_min_hit_xbox = min;
                     break;
             }
         }
@@ -1275,7 +1301,7 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
     /* If we're dealing with GC, we have to check if we're looking at a
        TSUMIKIRI J-SWORD or SEALED J-SWORD, and treat them specially because of
        the kill count that is stored where percentages normally are. */
-    if(ver == ITEM_VERSION_GC) {
+    if(ver == ITEM_VERSION_GC || ver == ITEM_VERSION_XBOX) {
         if(ic == 0x003200) {
             is_js = 1;
 
@@ -1385,6 +1411,8 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp = l->def_max_hit_v2;
         else if(ver == ITEM_VERSION_GC)
             tmp = l->def_max_hit_gc;
+        else if(ver == ITEM_VERSION_XBOX)
+            tmp = l->def_max_hit_xbox;
 
         if(tmp != INT_MAX) {
             if((i->data_b[6] == 5 && (s8)i->data_b[7] > tmp) ||
@@ -1405,6 +1433,8 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp = l->def_min_hit_v2;
         else if(ver == ITEM_VERSION_GC)
             tmp = l->def_min_hit_gc;
+        else if(ver == ITEM_VERSION_XBOX)
+            tmp = l->def_min_hit_xbox;
 
         if(tmp != INT_MIN) {
             if((i->data_b[6] == 5 && (s8)i->data_b[7] < tmp) ||
@@ -1425,6 +1455,8 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp = l->def_max_percent_v2;
         else if(ver == ITEM_VERSION_GC)
             tmp = l->def_max_percent_gc;
+        else if(ver == ITEM_VERSION_XBOX)
+            tmp = l->def_max_percent_xbox;
 
         if(i->data_b[6] && (s8)i->data_b[7] > tmp)
             if(i->data_b[6] != 5 || !hit_max)
@@ -1448,6 +1480,8 @@ static int check_percents(sylverant_limits_t *l, sylverant_iitem_t *i,
             tmp = l->def_min_percent_v2;
         else if(ver == ITEM_VERSION_GC)
             tmp = l->def_min_percent_gc;
+        else if(ver == ITEM_VERSION_XBOX)
+            tmp = l->def_min_percent_xbox;
 
         if(i->data_b[6] && (s8)i->data_b[7] < tmp)
             if(i->data_b[6] != 5 || !hit_min)
@@ -2065,6 +2099,7 @@ static int check_mag(sylverant_limits_t *l, sylverant_iitem_t *i,
             return check_mag_v2(l, i, version, ic);
 
         case ITEM_VERSION_GC:
+        case ITEM_VERSION_XBOX:
             return check_mag_v3(l, i, version, ic);
     }
 

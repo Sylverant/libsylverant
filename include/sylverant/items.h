@@ -50,6 +50,7 @@
 #define ITEM_VERSION_V1         0x01
 #define ITEM_VERSION_V2         0x02
 #define ITEM_VERSION_GC         0x04
+#define ITEM_VERSION_XBOX       0x08
 
 /* Base item structure. This is not generally used directly, but rather as a
    piece of the overall puzzle. */
@@ -167,6 +168,10 @@ typedef struct sylverant_limits {
     int def_max_percent_gc;
     int def_min_hit_gc;
     int def_max_hit_gc;
+    int def_min_percent_xbox;
+    int def_max_percent_xbox;
+    int def_min_hit_xbox;
+    int def_max_hit_xbox;
     int check_j_sword;
 
     char *name;
