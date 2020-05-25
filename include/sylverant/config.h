@@ -37,6 +37,7 @@ extern const char sylverant_ship_cfg[];
 #define SHIPGATE_FLAG_NOBB      0x00000200
 #define SHIPGATE_FLAG_NODCNTE   0x00000400
 #define SHIPGATE_FLAG_NOPSOX    0x00000800
+#define SHIPGATE_FLAG_NOPCNTE   0x00001000
 
 /* The first few (V1, V2, PC) are only valid on the ship server, whereas the
    last couple (Ep3, BB) are only valid on the login server. GC works either

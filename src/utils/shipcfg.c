@@ -689,7 +689,7 @@ static int handle_scripts(xmlNode *n, sylverant_ship_t *cur) {
 }
 
 static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
-    xmlChar *v1, *v2, *pc, *gc, *ep3, *bb, *dcnte, *xb;
+    xmlChar *v1, *v2, *pc, *gc, *ep3, *bb, *dcnte, *xb, *pcnte;
     int rv = 0;
 
     /* Grab the attributes of the tag. */
@@ -701,6 +701,7 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
     bb = xmlGetProp(n, XC"bb");
     dcnte = xmlGetProp(n, XC"dcnte");
     xb = xmlGetProp(n, XC"xbox");
+    pcnte = xmlGetProp(n, XC"pcnte");
 
     /* Make sure we have the data */
     if(!v1 || !v2 || !pc || !gc || !ep3) {
@@ -734,6 +735,9 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
     if(!xb || !xmlStrcmp(xb, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOPSOX;
 
+    if(!pcnte || !xmlStrcmp(pcnte, XC"false"))
+        cur->shipgate_flags |= SHIPGATE_FLAG_NOPCNTE;
+
 err:
     xmlFree(v1);
     xmlFree(v2);
@@ -743,6 +747,7 @@ err:
     xmlFree(bb);
     xmlFree(dcnte);
     xmlFree(xb);
+    xmlFree(pcnte);
     return rv;
 }
 
