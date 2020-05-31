@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016, 2018, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -288,7 +288,7 @@ err:
 }
 
 static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
-    xmlChar *fn, *desc, *gc, *ep3, *bb, *lang;
+    xmlChar *fn, *desc, *gc, *ep3, *bb, *lang, *xb;
     void *tmp;
     int rv = 0, count = cur->info_file_count, i, done = 0;
     char *lasts, *token;
@@ -300,6 +300,7 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
     ep3 = xmlGetProp(n, XC"ep3");
     bb = xmlGetProp(n, XC"bb");
     lang = xmlGetProp(n, XC"languages");
+    xb = xmlGetProp(n, XC"xbox");
 
     /* Make sure we have all of them... */
     if(!fn || !gc || !ep3 || !bb) {
@@ -314,9 +315,7 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
         goto err;
     }
     else if(desc && is_motd) {
-        debug(DBG_ERROR, "MOTD should not have description!\n");
-        rv = -3;
-        goto err;
+        debug(DBG_WARN, "MOTD should not have description! Ignoring.\n");
     }
 
     /* Allocate space for the new description. */
@@ -336,17 +335,17 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
     cur->info_files[count].desc = (char *)desc;
 
     /* Fill in the applicable versions */
-    if(!xmlStrcmp(gc, XC"true")) {
+    if(!xmlStrcmp(gc, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_GC;
-    }
 
-    if(!xmlStrcmp(ep3, XC"true")) {
+    if(!xmlStrcmp(ep3, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_EP3;
-    }
 
-    if(!xmlStrcmp(bb, XC"true")) {
+    if(!xmlStrcmp(bb, XC"true"))
         cur->info_files[count].versions |= SYLVERANT_INFO_BB;
-    }
+
+    if(xb && !xmlStrcmp(xb, XC"true"))
+        cur->info_files[count].versions |= SYLVERANT_INFO_XBOX;
 
     /* Parse the languages string, if given. */
     if(lang) {
@@ -375,6 +374,7 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
 
     ++cur->info_file_count;
 
+    xmlFree(xb);
     xmlFree(lang);
     xmlFree(bb);
     xmlFree(ep3);
@@ -383,6 +383,7 @@ static int handle_info(xmlNode *n, sylverant_config_t *cur, int is_motd) {
     return 0;
 
 err:
+    xmlFree(xb);
     xmlFree(lang);
     xmlFree(bb);
     xmlFree(ep3);
@@ -446,6 +447,19 @@ static int handle_scripts(xmlNode *n, sylverant_config_t *cur) {
         cur->lg_scripts_file = (char *)fn;
 
     return 0;
+}
+
+static int handle_socket(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->socket_dir = (char *)fn;
+        return 0;
+    }
+
+    debug(DBG_ERROR, "Malformed socket tag, no dir given\n");
+    return -1;
 }
 
 int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
@@ -582,6 +596,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
                 goto err_doc;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"socket")) {
+            if(handle_socket(n, rv)) {
+                irv = -17;
+                goto err_doc;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -640,6 +660,7 @@ void sylverant_free_config(sylverant_config_t *cfg) {
         xmlFree(cfg->patch_dir);
         xmlFree(cfg->sg_scripts_file);
         xmlFree(cfg->lg_scripts_file);
+        xmlFree(cfg->socket_dir);
 
         free(cfg->info_files);
         free(cfg->limits);

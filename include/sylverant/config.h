@@ -48,6 +48,7 @@ extern const char sylverant_ship_cfg[];
 #define SYLVERANT_INFO_GC       0x00000008
 #define SYLVERANT_INFO_EP3      0x00000010
 #define SYLVERANT_INFO_BB       0x00000020
+#define SYLVERANT_INFO_XBOX     0x00000040
 
 /* Languages that can be set for the info entries. */
 #define SYLVERANT_INFO_JAPANESE 0x00000001
@@ -108,6 +109,7 @@ typedef struct sylverant_config {
     char *patch_dir;
     char *sg_scripts_file;
     char *lg_scripts_file;
+    char *socket_dir;
 } sylverant_config_t;
 
 typedef struct sylverant_event {
