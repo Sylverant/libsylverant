@@ -732,11 +732,12 @@ static int handle_versions(xmlNode *n, sylverant_ship_t *cur) {
     if(!dcnte || !xmlStrcmp(dcnte, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NODCNTE;
 
-    if(!xb || !xmlStrcmp(xb, XC"false"))
-        cur->shipgate_flags |= SHIPGATE_FLAG_NOPSOX;
-
     if(!pcnte || !xmlStrcmp(pcnte, XC"false"))
         cur->shipgate_flags |= SHIPGATE_FLAG_NOPCNTE;
+
+    /* For the time being, default to xbox being disabled... */
+    if(xb && !xmlStrcmp(xb, XC"true"))
+        cur->shipgate_flags &= ~SHIPGATE_FLAG_NOPSOX;
 
 err:
     xmlFree(v1);
@@ -1193,6 +1194,7 @@ int sylverant_read_ship_config(const char *f, sylverant_ship_t **cfg) {
     memset(rv->events, 0, sizeof(sylverant_event_t));
 
     rv->limits_default = -1;
+    rv->shipgate_flags |= SHIPGATE_FLAG_NOPSOX;
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
