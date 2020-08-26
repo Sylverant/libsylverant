@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -21,6 +21,13 @@
 
 #include <stdio.h>
 #include <mysql.h>
+
+#if !defined(MARIADB_BASE_VERSION)
+    /* MySQL 8 deprecated the my_bool type. */
+#   if MYSQL_VERSION_ID > 80000
+#       define my_bool int
+#    endif
+#endif
 
 int sylverant_db_open(sylverant_dbconfig_t *cfg, sylverant_dbconn_t *conn)  {
     MYSQL *mysql;
@@ -54,7 +61,7 @@ int sylverant_db_open(sylverant_dbconfig_t *cfg, sylverant_dbconn_t *conn)  {
     }
 
     /* Configure to automatically reconnect if the connection is dropped. */
-    mysql_options(mysql, MYSQL_OPT_RECONNECT, &rc); 
+    mysql_options(mysql, MYSQL_OPT_RECONNECT, &rc);
 
     conn->conndata = (void *)mysql;
 
