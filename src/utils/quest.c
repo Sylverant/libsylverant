@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -58,7 +58,8 @@ static int handle_short(xmlNode *n, sylverant_quest_t *q) {
     return 0;
 }
 
-static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def) {
+static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def,
+                          uint32_t mask) {
     xmlChar *id, *type, *drops;
     int rv = 0, count;
     void *tmp;
@@ -131,6 +132,7 @@ static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def) {
         q->monster_types = (mon *)tmp;
         q->monster_types[count - 1].key = num;
         q->monster_types[count - 1].value = drop;
+        q->monster_types[count - 1].mask = mask;
         q->num_monster_types = count;
     }
     else {
@@ -158,6 +160,7 @@ static int handle_monster(xmlNode *n, sylverant_quest_t *q, uint32_t def) {
         q->monster_ids = (mon *)tmp;
         q->monster_ids[count - 1].key = num;
         q->monster_ids[count - 1].value = drop;
+        q->monster_ids[count - 1].mask = mask;
         q->num_monster_ids = count;
     }
 
@@ -169,16 +172,31 @@ err:
 }
 
 static int handle_drops(xmlNode *n, sylverant_quest_t *q) {
-    xmlChar *def;
+    xmlChar *def, *typ;
     int rv = 0;
     uint32_t drop_def = SYLVERANT_QUEST_ENDROP_NORARE;
+    uint32_t mask = SYLVERANT_QUEST_ENDROP_SDROPS;
 
     /* Grab the attribute we're expecting. */
     def = xmlGetProp(n, XC"default");
+    typ = xmlGetProp(n, XC"type");
 
     if(!def) {
         debug(DBG_ERROR, "<drops> tag missing default attribute.\n");
         return -1;
+    }
+
+    /* If the type attribute is set, parse it. Otherwise default to server. */
+    if(typ) {
+        if(!xmlStrcmp(typ, XC"client"))
+            mask = SYLVERANT_QUEST_ENDROP_CDROPS;
+        else if(!xmlStrcmp(typ, XC"both"))
+            mask |= SYLVERANT_QUEST_ENDROP_CDROPS;
+        else if(xmlStrcmp(typ, XC"server")) {
+            debug(DBG_ERROR, "Invalid type attribute for <drops>: '%s'\n",
+                  (char *)typ);
+            return -1;
+        }
     }
 
     /* Make sure the default value is sane */
@@ -209,7 +227,7 @@ static int handle_drops(xmlNode *n, sylverant_quest_t *q) {
             continue;
         }
         else if(!xmlStrcmp(n->name, XC"monster")) {
-            if(handle_monster(n, q, drop_def)) {
+            if(handle_monster(n, q, drop_def, mask)) {
                 rv = -3;
                 goto err;
             }

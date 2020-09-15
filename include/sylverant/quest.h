@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011, 2014, 2015, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2014, 2015, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -48,11 +48,15 @@
 #define SYLVERANT_QUEST_ENDROP_PARTIAL  2
 #define SYLVERANT_QUEST_ENDROP_FREE     3
 
+#define SYLVERANT_QUEST_ENDROP_SDROPS   0x80000000
+#define SYLVERANT_QUEST_ENDROP_CDROPS   0x40000000
+
 #define SYLVERANT_QUEST_EP1             (1 << 0)
 #define SYLVERANT_QUEST_EP2             (1 << 1)
 #define SYLVERANT_QUEST_EP4             (1 << 2)
 
 struct sylverant_quest_enemy {
+    uint32_t mask;
     uint32_t key;
     uint32_t value;
 };
