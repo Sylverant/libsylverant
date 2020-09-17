@@ -17,6 +17,6 @@
 
 sylverant_includedir = $(includedir)/sylverant
 sylverant_include_HEADERS = config.h database.h debug.h prs.h mtwist.h \
-                            encryption.h checksum.h md5.h sha4.h quest.h \
+                            encryption.h checksum.h md5.h quest.h \
                             items.h characters.h memory.h
 datarootdir = @datarootdir@
