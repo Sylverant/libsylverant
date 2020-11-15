@@ -27,12 +27,15 @@
 
 #include "sylverant/quest.h"
 #include "sylverant/debug.h"
+#include "sylverant/memory.h"
 
 #ifndef LIBXML_TREE_ENABLED
 #error You must have libxml2 with tree support built-in.
 #endif
 
 #define XC (const xmlChar *)
+
+static void quest_dtor(void *o);
 
 static int handle_long(xmlNode *n, sylverant_quest_t *q) {
     xmlChar *desc;
@@ -544,17 +547,26 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     }
 
     /* Allocate space for the quest */
-    tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t));
+    tmp = realloc(c->quests, (c->quest_count + 1) * sizeof(sylverant_quest_t*));
 
     if(!tmp) {
-        debug(DBG_ERROR, "Couldn't allocate space for quest\n");
+        debug(DBG_ERROR, "Couldn't allocate space for quest in array\n");
         perror("realloc");
         rv = -6;
         goto err;
     }
 
-    c->quests = (sylverant_quest_t *)tmp;
-    q = c->quests + c->quest_count++;
+    c->quests = (sylverant_quest_t **)tmp;
+
+    q = (sylverant_quest_t *)ref_alloc(sizeof(sylverant_quest_t), &quest_dtor);
+    if(!q) {
+        debug(DBG_ERROR, "Couldn't allocate space for quest\n");
+        perror("ref_alloc");
+        rv = -6;
+        goto err;
+    }
+
+    c->quests[c->quest_count++] = q;
 
     /* Clear the quest out */
     memset(q, 0, sizeof(sylverant_quest_t));
@@ -920,23 +932,28 @@ err:
     return irv;
 }
 
+static void quest_dtor(void *o) {
+    sylverant_quest_t *q = (sylverant_quest_t *)o;
+
+    if(!q)
+        return;
+
+    xmlFree(q->long_desc);
+    xmlFree(q->prefix);
+    free(q->monster_ids);
+    free(q->monster_types);
+    free(q->synced_regs);
+}
+
 void sylverant_quests_destroy(sylverant_quest_list_t *list) {
     int i, j;
     sylverant_quest_category_t *cat;
-    sylverant_quest_t *quest;
 
     for(i = 0; i < list->cat_count; ++i) {
         cat = &list->cats[i];
 
         for(j = 0; j < cat->quest_count; ++j) {
-            quest = &cat->quests[j];
-
-            /* Free each malloced item in the quest. */
-            xmlFree(quest->long_desc);
-            xmlFree(quest->prefix);
-            free(quest->monster_ids);
-            free(quest->monster_types);
-            free(quest->synced_regs);
+            ref_release(cat->quests[j]);
         }
 
         /* Free the list of quests. */
