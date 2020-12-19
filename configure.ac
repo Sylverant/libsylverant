@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2010, 2011, 2013 Lawrence Sebald
+dnl Copyright (C) 2009, 2010, 2011, 2013, 2020 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -18,6 +18,7 @@ dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 AC_PREREQ(2.61)
 AC_INIT([libsylverant], [0.1.0])
 AC_CONFIG_MACRO_DIR([m4])
+AC_USE_SYSTEM_EXTENSIONS
 
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
@@ -47,6 +48,9 @@ AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
+
+AC_CHECK_FUNCS([timegm _mkgmtime])
+AC_CHECK_FUNCS([strptime],,[AC_LIBOBJ([strptime])])
 
 if test $IS_OSX; then
     test $libxml2_CFLAGS || libxml2_CFLAGS="-I/usr/include/libxml2"

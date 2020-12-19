@@ -74,6 +74,9 @@ typedef struct sylverant_quest {
     char *prefix;
     void *user_data;
 
+    uint64_t start_time;
+    uint64_t end_time;
+
     int episode;
     int event;
     int format;

@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -34,6 +35,15 @@
 #endif
 
 #define XC (const xmlChar *)
+
+#ifndef HAVE_TIMEGM
+#ifdef HAVE__MKGMTIME
+#define timegm _mkgmtime
+#else
+#warning Time values will not be in UTC time unless run in UTC timezone.
+#define timegm mktime
+#endif
+#endif
 
 static void quest_dtor(void *o);
 
@@ -351,6 +361,70 @@ err:
     return rv;
 }
 
+static int handle_availability(xmlNode *n, sylverant_quest_t *q) {
+    xmlChar *start_str, *end_str;
+    struct tm start_tm, end_tm;
+    time_t start_val = 0, end_val = 0;
+    int rv = 0;
+
+    /* Grab the attributes we're expecting. */
+    start_str = xmlGetProp(n, XC"start");
+    end_str = xmlGetProp(n, XC"end");
+
+    if(start_str) {
+        if(!strptime((const char *)start_str, "%Y-%m-%d %T", &start_tm)) {
+            debug(DBG_ERROR, "Cannot parse start time: '%s' on line %hu\n"
+                  "Must be of the form YYYY-MM-DD HH:MM:SS\n",
+                  (const char *)start_str, n->line);
+            rv = -1;
+            goto err;
+        }
+
+        start_val = timegm(&start_tm);
+
+        if(start_val < 0) {
+            debug(DBG_ERROR, "Invalid start time specified on line %hu\n",
+                  n->line);
+            rv = -2;
+            goto err;
+        }
+    }
+
+    if(end_str) {
+        if(!strptime((const char *)end_str, "%Y-%m-%d %T", &end_tm)) {
+            debug(DBG_ERROR, "Cannot parse end time: '%s' on line %hu\n"
+                  "Must be of the form YYYY-MM-DD HH:MM:SS\n",
+                  (const char *)end_str, n->line);
+            rv = -3;
+            goto err;
+        }
+
+        end_val = timegm(&end_tm);
+
+        if(end_val < 0) {
+            debug(DBG_ERROR, "Invalid end time specified on line %hu\n",
+                  n->line);
+            rv = -4;
+            goto err;
+        }
+
+        if(end_val < start_val) {
+            debug(DBG_ERROR, "End time is before start time on line %hu\n",
+                  n->line);
+            rv = -5;
+            goto err;
+        }
+    }
+
+    q->start_time = (uint64_t)start_val;
+    q->end_time = (uint64_t)end_val;
+
+err:
+    xmlFree(end_str);
+    xmlFree(start_str);
+    return rv;
+}
+
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
     xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv;
@@ -644,6 +718,12 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         else if(!xmlStrcmp(n->name, XC"syncregs")) {
             if(handle_syncregs(n, q)) {
                 rv = -15;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"availability")) {
+            if(handle_availability(n, q)) {
+                rv = -16;
                 goto err;
             }
         }
