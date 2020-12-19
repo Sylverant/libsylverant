@@ -38,6 +38,7 @@
 #define SYLVERANT_QUEST_SYNC_ALL    (1 << 2)
 #define SYLVERANT_QUEST_FLAG16      (1 << 3)
 #define SYLVERANT_QUEST_DATAFL      (1 << 5)
+#define SYLVERANT_QUEST_HIDDEN      (1 << 6)
 
 #define SYLVERANT_QUEST_BINDAT      0
 #define SYLVERANT_QUEST_QST         1

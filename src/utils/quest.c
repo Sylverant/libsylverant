@@ -427,11 +427,11 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv;
+    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv, *hidden;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
-    unsigned long ld = 0, sd = 0, sc = 0, privs = 0;
+    unsigned long ld = 0, sd = 0, sc = 0, privs = 0, hidden_fl = 0;
     long event_num;
     sylverant_quest_t *q;
     char *lasts, *token;
@@ -456,6 +456,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     sdata = xmlGetProp(n, XC"datareg");
     sctl = xmlGetProp(n, XC"ctlreg");
     priv = xmlGetProp(n, XC"privileges");
+    hidden = xmlGetProp(n, XC"hidden");
 
     /* Make sure we have all of them... */
     if(!name || !prefix || !v1 || !ep || !event || !fmt || !id) {
@@ -689,6 +690,9 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     if(join && !xmlStrcmp(join, XC"true"))
         q->flags |= SYLVERANT_QUEST_JOINABLE;
 
+    if(hidden && !xmlStrcmp(hidden, XC"true"))
+        q->flags |= SYLVERANT_QUEST_HIDDEN;
+
     /* Now that we're done with that, deal with any children of the node */
     n = n->children;
     while(n) {
@@ -723,7 +727,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
         }
         else if(!xmlStrcmp(n->name, XC"availability")) {
             if(handle_availability(n, q)) {
-                rv = -16;
+                rv = -17;
                 goto err;
             }
         }
@@ -753,6 +757,7 @@ err:
     xmlFree(sctl);
     xmlFree(sdata);
     xmlFree(priv);
+    xmlFree(hidden);
     return rv;
 }
 
