@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2011, 2014, 2015, 2018, 2019, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2011, 2014, 2015, 2018, 2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -21,10 +21,11 @@
 
 #include <stdint.h>
 
-#define SYLVERANT_QUEST_V1  (1 << 0)
-#define SYLVERANT_QUEST_V2  (1 << 1)
-#define SYLVERANT_QUEST_GC  (1 << 2)
-#define SYLVERANT_QUEST_BB  (1 << 3)
+#define SYLVERANT_QUEST_V1   (1 << 0)
+#define SYLVERANT_QUEST_V2   (1 << 1)
+#define SYLVERANT_QUEST_GC   (1 << 2)
+#define SYLVERANT_QUEST_BB   (1 << 3)
+#define SYLVERANT_QUEST_XBOX (1 << 4)
 
 #define SYLVERANT_QUEST_NORMAL      (1 << 0)
 #define SYLVERANT_QUEST_BATTLE      (1 << 1)

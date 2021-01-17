@@ -1,7 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019, 2020,
+                  2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -427,7 +428,7 @@ err:
 
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
-    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv, *hidden;
+    xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv, *hidden, *xb;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
@@ -444,6 +445,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     v2 = xmlGetProp(n, XC"v2");
     gc = xmlGetProp(n, XC"gc");
     bb = xmlGetProp(n, XC"bb");
+    xb = xmlGetProp(n, XC"xbox");
     ep = xmlGetProp(n, XC"episode");
     event = xmlGetProp(n, XC"event");
     fmt = xmlGetProp(n, XC"format");
@@ -670,6 +672,9 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     if(!xmlStrcmp(bb, XC"true"))
         q->versions |= SYLVERANT_QUEST_BB;
 
+    if(xb && !xmlStrcmp(xb, XC"true"))
+        q->versions |= SYLVERANT_QUEST_XBOX;
+
     q->min_players = min_pl;
     q->max_players = max_pl;
 
@@ -745,6 +750,7 @@ err:
     xmlFree(v2);
     xmlFree(gc);
     xmlFree(bb);
+    xmlFree(xb);
     xmlFree(ep);
     xmlFree(event);
     xmlFree(fmt);
