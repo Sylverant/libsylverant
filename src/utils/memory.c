@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2014 Lawrence Sebald
+    Copyright (C) 2014, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -108,6 +108,31 @@ void *ref_release(void *r) {
         free(rf);
         r = NULL;
     }
+
+    return r;
+}
+
+void *ref_free(void *r, int skip_dtor) {
+    uint8_t *ptr = (uint8_t *)r;
+    struct ref *rf;
+
+    /* Make sure we're not trying to release a NULL pointer... */
+    if(!r)
+        return NULL;
+
+    /* Grab the reference counting struct. */
+    rf = (struct ref *)(ptr - PSZ);
+
+    /* Cowardly refuse to do anything if the magic isn't right. */
+    if(rf->r.magic != RMAGIC)
+        return NULL;
+
+    /* Free the object, regardless of the reference count. */
+    if(!skip_dtor && rf->r.dtor)
+        rf->r.dtor(r);
+
+    free(rf);
+    r = NULL;
 
     return r;
 }

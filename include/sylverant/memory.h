@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2014 Lawrence Sebald
+    Copyright (C) 2014, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -24,6 +24,7 @@
 extern void *ref_alloc(size_t sz, void (*dtor)(void *));
 extern void *ref_retain(void *r);
 extern void *ref_release(void *r);
+extern void *ref_free(void *r, int skip_dtor);
 
 #define retain(x) ref_retain(x)
 #define release(x) ref_release(x)
