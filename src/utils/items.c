@@ -389,8 +389,11 @@ static int handle_max_ver(xmlNode *n, int *max, int *min, int *ver) {
     else {
         debug(DBG_ERROR, "Invalid value for attribute 'version' at line %hu: "
               "%s\n", n->line, (char *)val);
+        xmlFree(val);
         return -3;
     }
+
+    xmlFree(val);
 
     /* Grab the attributes */
     if((val = xmlGetProp(n, XC"max"))) {
@@ -953,7 +956,7 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
         free(rv->guards);
         free(rv->mags);
         free(rv->tools);
-        free(rv);
+        ref_free(rv, 1);
         *l = NULL;
         return -3;
     }
