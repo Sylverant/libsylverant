@@ -1348,6 +1348,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->v2_rtdata_file);
         xmlFree(cfg->gc_rtdata_file);
         xmlFree(cfg->bb_rtdata_file);
+        xmlFree(cfg->smutdata_file);
 
         free(cfg->events);
 
