@@ -209,8 +209,12 @@ static int handle_drops(xmlNode *n, sylverant_quest_t *q) {
         else if(xmlStrcmp(typ, XC"server")) {
             debug(DBG_ERROR, "Invalid type attribute for <drops>: '%s'\n",
                   (char *)typ);
+            xmlFree(typ);
+            xmlFree(def);
             return -1;
         }
+
+        xmlFree(typ);
     }
 
     /* Make sure the default value is sane */
