@@ -1,7 +1,7 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2016, 2018, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016, 2018, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -462,6 +462,85 @@ static int handle_socket(xmlNode *n, sylverant_config_t *cur) {
     return -1;
 }
 
+static int handle_registration(xmlNode *n, sylverant_config_t *cur) {
+    xmlChar *t;
+
+    /* Grab the attributes, if given. */
+    if((t = xmlGetProp(n, XC"dc"))) {
+        if(!xmlStrcmp(t, XC"true")) {
+            cur->registration_required |= SYLVERANT_REG_DC;
+        }
+        else if(xmlStrcmp(t, XC"false")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    if((t = xmlGetProp(n, XC"dcnte"))) {
+        if(!xmlStrcmp(t, XC"false")) {
+            cur->registration_required &= ~SYLVERANT_REG_DCNTE;
+        }
+        else if(xmlStrcmp(t, XC"true")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    if((t = xmlGetProp(n, XC"pc"))) {
+        if(!xmlStrcmp(t, XC"false")) {
+            cur->registration_required &= ~SYLVERANT_REG_PC;
+        }
+        else if(xmlStrcmp(t, XC"true")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    if((t = xmlGetProp(n, XC"gc"))) {
+        if(!xmlStrcmp(t, XC"false")) {
+            cur->registration_required &= ~SYLVERANT_REG_GC;
+        }
+        else if(xmlStrcmp(t, XC"true")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    if((t = xmlGetProp(n, XC"xbox"))) {
+        if(!xmlStrcmp(t, XC"false")) {
+            cur->registration_required &= ~SYLVERANT_REG_XBOX;
+        }
+        else if(xmlStrcmp(t, XC"true")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    if((t = xmlGetProp(n, XC"bb"))) {
+        if(!xmlStrcmp(t, XC"false")) {
+            cur->registration_required &= ~SYLVERANT_REG_BB;
+        }
+        else if(xmlStrcmp(t, XC"true")) {
+            xmlFree(t);
+            return -1;
+        }
+
+        xmlFree(t);
+    }
+
+    return 0;
+}
+
 int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
@@ -482,6 +561,8 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
     /* Clear out the config. */
     memset(rv, 0, sizeof(sylverant_config_t));
     rv->limits_enforced = -1;
+    rv->registration_required = SYLVERANT_REG_DCNTE | SYLVERANT_REG_PC |
+        SYLVERANT_REG_GC | SYLVERANT_REG_XBOX | SYLVERANT_REG_BB;
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
@@ -599,6 +680,12 @@ int sylverant_read_config(const char *f, sylverant_config_t **cfg) {
         else if(!xmlStrcmp(n->name, XC"socket")) {
             if(handle_socket(n, rv)) {
                 irv = -17;
+                goto err_doc;
+            }
+        }
+        else if(!xmlStrcmp(n->name, XC"registration_required")) {
+            if(handle_registration(n, rv)) {
+                irv = -18;
                 goto err_doc;
             }
         }

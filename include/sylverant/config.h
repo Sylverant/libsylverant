@@ -2,7 +2,7 @@
     This file is part of Sylverant PSO Server.
 
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019,
-                  2020 Lawrence Sebald
+                  2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -67,6 +67,13 @@ extern const char sylverant_ship_cfg[];
 #define SYLVERANT_SHIP_QUEST_SRARES 0x00000008
 #define SYLVERANT_SHIP_PMT_LIMITBB  0x00000010
 
+#define SYLVERANT_REG_DC            0x00000001
+#define SYLVERANT_REG_DCNTE         0x00000002
+#define SYLVERANT_REG_PC            0x00000004
+#define SYLVERANT_REG_GC            0x00000008
+#define SYLVERANT_REG_XBOX          0x00000010
+#define SYLVERANT_REG_BB            0x00000020
+
 typedef struct sylverant_dbconfig {
     char *type;
     char *host;
@@ -95,6 +102,7 @@ typedef struct sylverant_config {
     uint32_t server_ip;
     uint8_t server_ip6[16];
     uint16_t shipgate_port;
+    uint8_t registration_required;
     char *shipgate_cert;
     char *shipgate_key;
     char *shipgate_ca;
