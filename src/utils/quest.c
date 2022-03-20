@@ -1,8 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019, 2020,
-                  2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2014, 2015, 2018, 2019, 2020, 2021,
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -430,6 +430,27 @@ err:
     return rv;
 }
 
+static int handle_script(xmlNode *n, sylverant_quest_t *q) {
+    int rv = 0;
+    xmlChar *fn;
+
+    /* Grab the script filename */
+    if((fn = xmlGetProp(n, XC"load"))) {
+        if(access((char *)fn, R_OK)) {
+            debug(DBG_ERROR, "Quest script file '%s' cannot be read\n",
+                  (char *)fn);
+            rv = -1;
+            xmlFree(fn);
+            goto err;
+        }
+
+        q->onload_script_file = fn;
+    }
+
+err:
+    return rv;
+}
+
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
     xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv, *hidden, *xb;
@@ -740,6 +761,12 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
                 goto err;
             }
         }
+        else if(!xmlStrcmp(n->name, XC"script")) {
+            if(handle_script(n, q)) {
+                rv = -18;
+                goto err;
+            }
+        }
         else {
             debug(DBG_WARN, "Invalid Tag %s on line %hu\n", (char *)n->name,
                   n->line);
@@ -1035,6 +1062,7 @@ static void quest_dtor(void *o) {
 
     xmlFree(q->long_desc);
     xmlFree(q->prefix);
+    xmlFree(q->onload_script_file);
     free(q->monster_ids);
     free(q->monster_types);
     free(q->synced_regs);
