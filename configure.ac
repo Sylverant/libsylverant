@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2010, 2011, 2013, 2020 Lawrence Sebald
+dnl Copyright (C) 2009, 2010, 2011, 2013, 2020, 2021 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -62,17 +62,17 @@ fi
 CFLAGS="$CFLAGS $libxml2_CFLAGS"
 LIBS="$LIBS $libxml2_LIBS"
 
-AC_ARG_WITH([mysql],
-            [AS_HELP_STRING([--without-mysql], [disable mysql support])], [],
-            [with_mysql=yes])
+AC_ARG_WITH([mariadb],
+            [AS_HELP_STRING([--without-mariadb], [disable MariaDB/MySQL support])], [],
+            [with_mariadb=yes])
 
 MYSQL_CLIENT_LIBS=
 MYSQL_CLIENT_CFLAGS=
 
-# Try to get the mysql stuff if the user hasn't disabled it with --without-mysql
-AS_IF([test "x$with_mysql" != xno], [MYSQL_CLIENT()])
+# Try to get the MariaDB/MySQL stuff if the user hasn't disabled it with --without-mariadb
+AS_IF([test "x$with_mariadb" != xno], [MYSQL_CLIENT()])
 
-AM_CONDITIONAL([MYSQL], [test "x$with_mysql" != xno])
+AM_CONDITIONAL([MARIADB], [test "x$with_mariadb" != xno])
 AX_DEFINE_DIR([DATAROOTDIR], [datarootdir])
 
 AC_CONFIG_FILES([Makefile
