@@ -104,6 +104,7 @@ typedef struct sylverant_quest {
     int sync;
 
     char *onload_script_file;
+    char *beforeload_script_file;
 } sylverant_quest_t;
 
 typedef struct sylverant_qcat {

@@ -447,6 +447,18 @@ static int handle_script(xmlNode *n, sylverant_quest_t *q) {
         q->onload_script_file = fn;
     }
 
+    if((fn = xmlGetProp(n, XC"before_load"))) {
+        if(access((char *)fn, R_OK)) {
+            debug(DBG_ERROR, "Quest script file '%s' cannot be read\n",
+                  (char *)fn);
+            rv = -2;
+            xmlFree(fn);
+            goto err;
+        }
+
+        q->beforeload_script_file = fn;
+    }
+
 err:
     return rv;
 }
@@ -1063,6 +1075,7 @@ static void quest_dtor(void *o) {
     xmlFree(q->long_desc);
     xmlFree(q->prefix);
     xmlFree(q->onload_script_file);
+    xmlFree(q->beforeload_script_file);
     free(q->monster_ids);
     free(q->monster_types);
     free(q->synced_regs);
