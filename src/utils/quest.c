@@ -466,6 +466,7 @@ err:
 static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     xmlChar *name, *prefix, *v1, *v2, *gc, *bb, *ep, *event, *fmt, *id, *sync;
     xmlChar *minpl, *maxpl, *join, *sflag, *sctl, *sdata, *priv, *hidden, *xb;
+    xmlChar *pc;
     int rv = 0, format;
     void *tmp;
     unsigned long episode, id_num, min_pl = 1, max_pl = 4, sf = 0, lc = 0;
@@ -480,6 +481,7 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
     prefix = xmlGetProp(n, XC"prefix");
     v1 = xmlGetProp(n, XC"v1");
     v2 = xmlGetProp(n, XC"v2");
+    pc = xmlGetProp(n, XC"pc");
     gc = xmlGetProp(n, XC"gc");
     bb = xmlGetProp(n, XC"bb");
     xb = xmlGetProp(n, XC"xbox");
@@ -702,15 +704,30 @@ static int handle_quest(xmlNode *n, sylverant_quest_category_t *c) {
 
     if(!xmlStrcmp(v2, XC"true"))
         q->versions |= SYLVERANT_QUEST_V2;
+    else if(!xmlStrcmp(v2, XC"disable"))
+        q->versions |= SYLVERANT_QUEST_NODC;
 
     if(!xmlStrcmp(gc, XC"true"))
         q->versions |= SYLVERANT_QUEST_GC;
+    else if(!xmlStrcmp(gc, XC"disable"))
+        q->versions |= SYLVERANT_QUEST_NOGC;
 
     if(!xmlStrcmp(bb, XC"true"))
         q->versions |= SYLVERANT_QUEST_BB;
 
-    if(xb && !xmlStrcmp(xb, XC"true"))
-        q->versions |= SYLVERANT_QUEST_XBOX;
+    if(xb) {
+        if(!xmlStrcmp(xb, XC"true"))
+            q->versions |= SYLVERANT_QUEST_XBOX;
+        else if(!xmlStrcmp(xb, XC"disable"))
+            q->versions |= SYLVERANT_QUEST_NOXB;
+    }
+
+    if(pc) {
+        if(!xmlStrcmp(pc, XC"true"))
+            q->versions |= SYLVERANT_QUEST_V2;
+        else if(!xmlStrcmp(pc, XC"disable"))
+            q->versions |= SYLVERANT_QUEST_NOPC;
+    }
 
     q->min_players = min_pl;
     q->max_players = max_pl;
@@ -791,6 +808,7 @@ err:
     xmlFree(name);
     xmlFree(v1);
     xmlFree(v2);
+    xmlFree(pc);
     xmlFree(gc);
     xmlFree(bb);
     xmlFree(xb);
