@@ -21,8 +21,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 libdatabase_la_SOURCES = dbconfig.c
 
 if MARIADB
-AM_CPPFLAGS += $(MYSQL_CLIENT_CFLAGS)
-libdatabase_la_SOURCES += dbmysql.c
+libdatabase_la_SOURCES += dbmaria.c
 endif
 
 datarootdir = @datarootdir@

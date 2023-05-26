@@ -63,17 +63,20 @@ CFLAGS="$CFLAGS $libxml2_CFLAGS"
 LIBS="$LIBS $libxml2_LIBS"
 
 AC_ARG_WITH([mariadb],
-            [AS_HELP_STRING([--without-mariadb], [disable MariaDB/MySQL support])], [],
+            [AS_HELP_STRING([--without-mariadb], [disable MariaDB support])], [],
             [with_mariadb=yes])
 
-MYSQL_CLIENT_LIBS=
-MYSQL_CLIENT_CFLAGS=
+MARIADB_LIBS=
+MARIADB_CFLAGS=
 
-# Try to get the MariaDB/MySQL stuff if the user hasn't disabled it with --without-mariadb
-AS_IF([test "x$with_mariadb" != xno], [MYSQL_CLIENT()])
+# Try to get the MariaDB stuff if the user hasn't disabled it with --without-mariadb
+AS_IF([test "x$with_mariadb" != xno], [AX_CHECK_MARIADB_CLIENT()])
 
 AM_CONDITIONAL([MARIADB], [test "x$with_mariadb" != xno])
 AX_DEFINE_DIR([DATAROOTDIR], [datarootdir])
+
+CFLAGS="$CFLAGS $MARIADB_CFLAGS"
+LIBS="$LIBS $MARIADB_LIBS"
 
 AC_CONFIG_FILES([Makefile
                  include/Makefile
@@ -81,6 +84,5 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/database/Makefile
                  src/utils/Makefile
-                 src/encryption/Makefile
-                 src/polarssl/Makefile])
+                 src/encryption/Makefile])
 AC_OUTPUT
