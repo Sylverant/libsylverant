@@ -20,6 +20,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 libutils_la_SOURCES = config.c debug.c mt19937ar.c checksum.c shipcfg.c \
                       quest.c items.c dir.c memory.c prs-decomp.c \
-                      prs-comp.c utils.c
+                      prs-comp.c md5.c
 
 datarootdir = @datarootdir@
