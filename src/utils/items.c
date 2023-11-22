@@ -1810,7 +1810,7 @@ static int check_mag_v3(sylverant_limits_t *l, sylverant_iitem_t *i,
     uint16_t tmp;
     int level = 0;
     int cpb, rpb, lpb, hascpb, hasrpb, haslpb;
-    uint8_t data2[4];
+    uint8_t item2[4];
 
     /* This shouldn't happen... */
     if(version < ITEM_VERSION_GC)
