@@ -984,6 +984,10 @@ int sylverant_read_limits(const char *f, sylverant_limits_t **l) {
     rv->def_max_percent_gc = INT_MAX;
     rv->def_min_hit_gc = INT_MIN;
     rv->def_max_hit_gc = INT_MAX;
+    rv->def_min_percent_xbox = INT_MIN;
+    rv->def_max_percent_xbox = INT_MAX;
+    rv->def_min_hit_xbox = INT_MIN;
+    rv->def_max_hit_xbox = INT_MAX;
 
     /* Create an XML Parsing context */
     cxt = xmlNewParserCtxt();
