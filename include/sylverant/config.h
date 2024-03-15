@@ -1,8 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019,
-                  2020, 2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019, 2020, 2021,
+                  2024 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -160,6 +160,7 @@ typedef struct sylverant_shipcfg {
     char *bb_rtdata_file;
     sylverant_event_t *events;
     char *smutdata_file;
+    char *sg_data_dir;
 
     char *ship_host;
     char *ship_host6;

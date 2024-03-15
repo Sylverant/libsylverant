@@ -1,8 +1,8 @@
 /*
     This file is part of Sylverant PSO Server.
 
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018, 2019,
-                  2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018, 2019, 2020,
+                  2024 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -936,7 +936,7 @@ static int handle_itemrt(xmlNode *n, sylverant_ship_t *cur) {
 static int handle_smutdata(xmlNode *n, sylverant_ship_t *cur) {
     xmlChar *fn;
 
-    /* Grab the directory, if given */
+    /* Grab the file, if given */
     if((fn = xmlGetProp(n, XC"file"))) {
         cur->smutdata_file = (char *)fn;
         return 0;
@@ -944,6 +944,20 @@ static int handle_smutdata(xmlNode *n, sylverant_ship_t *cur) {
 
     /* If we don't have it, report the error */
     debug(DBG_ERROR, "Malformed smutdata tag, no file given\n");
+    return -1;
+}
+
+static int handle_sgdata(xmlNode *n, sylverant_ship_t *cur) {
+    xmlChar *fn;
+
+    /* Grab the directory, if given */
+    if((fn = xmlGetProp(n, XC"dir"))) {
+        cur->sg_data_dir = (char *)fn;
+        return 0;
+    }
+
+    /* If we don't have it, report the error */
+    debug(DBG_ERROR, "Malformed sgdata tag, no dir given\n");
     return -1;
 }
 
@@ -1137,6 +1151,12 @@ static int handle_ship(xmlNode *n, sylverant_ship_t *cur) {
         else if(!xmlStrcmp(n2->name, XC"smutdata")) {
             if(handle_smutdata(n2, cur)) {
                 rv = -21;
+                goto err;
+            }
+        }
+        else if(!xmlStrcmp(n2->name, XC"sgdata")) {
+            if(handle_sgdata(n2, cur)) {
+                rv = -22;
                 goto err;
             }
         }
@@ -1349,6 +1369,7 @@ void sylverant_free_ship_config(sylverant_ship_t *cfg) {
         xmlFree(cfg->gc_rtdata_file);
         xmlFree(cfg->bb_rtdata_file);
         xmlFree(cfg->smutdata_file);
+        xmlFree(cfg->sg_data_dir);
 
         free(cfg->events);
 
