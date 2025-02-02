@@ -24,6 +24,6 @@
 #include <netinet/in.h>
 
 void md5(const uint8_t *input, uint32_t size, uint8_t output[16]);
-const void *sylverant_ntop(struct sockaddr *addr, char str[INET6_ADDRSTRLEN]);
+const void *syl_ntop(struct sockaddr *addr, char str[INET6_ADDRSTRLEN]);
 
 #endif /* !SYLVERANT__UTILS_H */

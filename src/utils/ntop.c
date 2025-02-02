@@ -20,7 +20,7 @@
 #include <arpa/inet.h>
 #include "sylverant/utils.h"
 
-const void *sylverant_ntop(struct sockaddr *addr, char str[INET6_ADDRSTRLEN]) {
+const void *syl_ntop(struct sockaddr *addr, char str[INET6_ADDRSTRLEN]) {
     int family = addr->sa_family;
 
     switch(family) {
