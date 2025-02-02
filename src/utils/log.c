@@ -27,6 +27,23 @@
 static int min_level = SYL_LOG_INFO;
 static FILE *dfp = NULL;
 
+static const char *levels[] = {
+    "TRACE",
+    "DEBUG",
+    "INFO",
+    "WARN",
+    "ERROR",
+    "CRIT"
+};
+
+static const char *levelname(int level) {
+    if((level % 10) == 0 && level >= 0 && level <= 50) {
+        return levels[level / 10];
+    }
+
+    return NULL;
+}
+
 void syl_log_set_level(int level) {
     min_level = level;
 }
@@ -48,12 +65,8 @@ void syl_logf(int level, const char *fmt, ...) {
     if(!dfp)
         dfp = stdout;
 
-    /* Make sure we want to receive messages at this level. */
-    if(level < min_level)
-        return;
-
     va_start(args, fmt);
-    syl_vflogf(dfp, fmt, args);
+    syl_vflogf(dfp, level, fmt, args);
     va_end(args);
 }
 
@@ -64,23 +77,26 @@ int syl_flogf(FILE *fp, int level, const char *fmt, ...) {
     if(!fp || !fmt)
         return -1;
 
-    if(level < min_level)
-        return 0;
-
     va_start(args, fmt);
-    rv = vfdebug(fp, fmt, args);
+    rv = syl_vflogf(fp, level, fmt, args);
     va_end(args);
 
     return rv;
 }
 
-int syl_vflogf(FILE *fp, const char *fmt, va_list args) {
+int syl_vflogf(FILE *fp, int level, const char *fmt, va_list args) {
     struct timeval rawtime;
     struct tm cooked;
     char timestamp[200];
+    const char *lname;
 
     if(!fp || !fmt)
         return -1;
+
+    if(level < min_level)
+        return 0;
+
+    lname = levelname(level);
 
     /* Get the timestamp */
     gettimeofday(&rawtime, NULL);
@@ -88,9 +104,13 @@ int syl_vflogf(FILE *fp, const char *fmt, va_list args) {
     /* Get UTC */
     gmtime_r(&rawtime.tv_sec, &cooked);
 
-    /* Print the timestamp in common log format style... */
+    /* Print the timestamp and level of the log in common log format style... */
     strftime(timestamp, 200, "%d/%b/%Y:%H:%M:%S %z", &cooked);
-    fprintf(fp, "[%s]: ", timestamp);
+
+    if(lname)
+        fprintf(fp, "[%s] [%s]: ", timestamp, lname);
+    else
+        fprintf(fp, "[%s] [%d]: ", timestamp, level);
 
     vfprintf(fp, fmt, args);
     fflush(fp);

@@ -42,6 +42,6 @@ void syl_log_set_level(int level);
 FILE *syl_log_set_file(FILE *fp);
 void syl_logf(int level, const char *fmt, ...);
 int syl_flogf(FILE *fp, int level, const char *fmt, ...);
-int syl_vflogf(FILE *fp, const char *fmt, va_list args);
+int syl_vflogf(FILE *fp, int level, const char *fmt, va_list args);
 
 #endif /* !DEBUG_H */
