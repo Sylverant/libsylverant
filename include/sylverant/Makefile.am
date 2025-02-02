@@ -16,7 +16,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 sylverant_includedir = $(includedir)/sylverant
-sylverant_include_HEADERS = config.h database.h debug.h prs.h mtwist.h \
+sylverant_include_HEADERS = config.h database.h debug.h mtwist.h \
                             encryption.h checksum.h quest.h \
                             items.h characters.h memory.h utils.h
 datarootdir = @datarootdir@
