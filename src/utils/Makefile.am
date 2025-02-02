@@ -1,7 +1,7 @@
 #
 #   This file is part of Sylverant PSO Server.
 #
-#   Copyright (C) 2009, 2010, 2014, 2023 Lawrence Sebald
+#   Copyright (C) 2009, 2010, 2014, 2023, 2025 Lawrence Sebald
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License version 3
@@ -20,6 +20,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 libutils_la_SOURCES = config.c debug.c mt19937ar.c checksum.c shipcfg.c \
                       quest.c items.c dir.c memory.c prs-decomp.c \
-                      prs-comp.c md5.c
+                      prs-comp.c md5.c ntop.c
 
 datarootdir = @datarootdir@
