@@ -57,7 +57,7 @@ FILE *syl_log_set_file(FILE *fp) {
     return ofp;
 }
 
-void syl_logf(int level, const char *fmt, ...) {
+void syl_logf(int level, const char *fn, int line, const char *fmt, ...) {
     va_list args;
 
     /* If the default file we write to hasn't been initialized, set it to
@@ -66,11 +66,12 @@ void syl_logf(int level, const char *fmt, ...) {
         dfp = stdout;
 
     va_start(args, fmt);
-    syl_vflogf(dfp, level, fmt, args);
+    syl_vflogf(dfp, level, fn, line, fmt, args);
     va_end(args);
 }
 
-int syl_flogf(FILE *fp, int level, const char *fmt, ...) {
+int syl_flogf(FILE *fp, int level, const char *fn, int line,
+              const char *fmt, ...) {
     va_list args;
     int rv;
 
@@ -78,13 +79,14 @@ int syl_flogf(FILE *fp, int level, const char *fmt, ...) {
         return -1;
 
     va_start(args, fmt);
-    rv = syl_vflogf(fp, level, fmt, args);
+    rv = syl_vflogf(fp, level, fn, line, fmt, args);
     va_end(args);
 
     return rv;
 }
 
-int syl_vflogf(FILE *fp, int level, const char *fmt, va_list args) {
+int syl_vflogf(FILE *fp, int level, const char *fn, int line, const char *fmt,
+               va_list args) {
     struct timeval rawtime;
     struct tm cooked;
     char timestamp[200];
@@ -108,9 +110,9 @@ int syl_vflogf(FILE *fp, int level, const char *fmt, va_list args) {
     strftime(timestamp, 200, "%d/%b/%Y:%H:%M:%S %z", &cooked);
 
     if(lname)
-        fprintf(fp, "[%s] [%s]: ", timestamp, lname);
+        fprintf(fp, "[%s:%d] [%s] [%s]: ", fn, line, timestamp, lname);
     else
-        fprintf(fp, "[%s] [%d]: ", timestamp, level);
+        fprintf(fp, "[%s:%d] [%s] [%d]: ", fn, line, timestamp, level);
 
     vfprintf(fp, fmt, args);
     fflush(fp);

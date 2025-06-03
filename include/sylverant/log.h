@@ -31,17 +31,19 @@
 #define SYL_LOG_ERROR   40
 #define SYL_LOG_CRIT    50
 
-#define TRACE(...)  syl_logf(SYL_LOG_TRACE, __VA_ARGS__)
-#define DEBUG(...)  syl_logf(SYL_LOG_DEBUG, __VA_ARGS__)
-#define INFO(...)   syl_logf(SYL_LOG_INFO, __VA_ARGS__)
-#define WARN(...)   syl_logf(SYL_LOG_WARN, __VA_ARGS__)
-#define ERROR(...)  syl_logf(SYL_LOG_ERROR, __VA_ARGS__)
-#define CRIT(...)   syl_logf(SYL_LOG_CRIT, __VA_ARGS__)
+#define TRACE(...)  syl_logf(SYL_LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
+#define DEBUG(...)  syl_logf(SYL_LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#define INFO(...)   syl_logf(SYL_LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define WARN(...)   syl_logf(SYL_LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
+#define ERROR(...)  syl_logf(SYL_LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#define CRIT(...)   syl_logf(SYL_LOG_CRIT, __FILE__, __LINE__, __VA_ARGS__)
 
 void syl_log_set_level(int level);
 FILE *syl_log_set_file(FILE *fp);
-void syl_logf(int level, const char *fmt, ...);
-int syl_flogf(FILE *fp, int level, const char *fmt, ...);
-int syl_vflogf(FILE *fp, int level, const char *fmt, va_list args);
+void syl_logf(int level, const char *fn, int line, const char *fmt, ...);
+int syl_flogf(FILE *fp, int level, const char *fn, int line,
+              const char *fmt, ...);
+int syl_vflogf(FILE *fp, int level, const char *fn, int line, const char *fmt,
+               va_list args);
 
 #endif /* !DEBUG_H */
